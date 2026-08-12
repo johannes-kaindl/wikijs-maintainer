@@ -1,0 +1,10 @@
+{
+  "id": "wikijs-maintainer",
+  "name": "Wiki.js Maintainer",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.7",
+  "description": "Publish and sync notes from a folder of your vault to a Wiki.js 2.x instance over GraphQL, with drift detection before every push.",
+  "author": "Jay",
+  "authorUrl": "https://github.com/v6t2b9",
+  "isDesktopOnly": false
+}

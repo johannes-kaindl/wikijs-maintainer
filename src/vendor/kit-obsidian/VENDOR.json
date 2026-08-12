@@ -1,0 +1,7 @@
+{
+  "source": "obsidian-kit",
+  "version": "0.26.0",
+  "sha": "2a7b5d7",
+  "vendored": "clock.ts, confirm.ts, folder-suggest.ts, settings_walker.ts",
+  "note": "Verbatim snapshot. Never hand-edit. Re-vendor via tools/sync-kit.sh."
+}

@@ -1,0 +1,39 @@
+{
+  "name": "wikijs-maintainer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Obsidian plugin that syncs a vault folder to a Wiki.js 2.x instance via GraphQL.",
+  "license": "AGPL-3.0-or-later",
+  "author": {
+    "name": "Jay",
+    "url": "https://github.com/v6t2b9"
+  },
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -p tsconfig.build.json -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "node scripts/check-no-abs-paths.mjs && vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
+    "lint": "node scripts/check-no-inline-disables.mjs && eslint src --max-warnings 0",
+    "check:pure": "node scripts/check-pure.mjs && node scripts/check-no-nul-bytes.mjs",
+    "gate": "npm run lint && npm run typecheck && npm run typecheck:scripts && npm test && npm run check:pure && npm run build",
+    "lab:wikijs": "esbuild scripts/wikijs-lab.ts --bundle --platform=node --format=esm --outfile=.lab.mjs --log-level=warning && node .lab.mjs",
+    "release": "test -f ../tools/release/release.mjs || { echo \"FEHLER: ../tools/release/ fehlt. Dieses Repo muss im Dach-Verzeichnis obsidian-plugins/ neben tools/ liegen — das Release-Tooling liegt dort zentral, nicht im Plugin. Ein Clone ohne Dach ist nicht release-faehig.\" >&2; exit 1; }; node ../tools/release/release.mjs",
+    "version-bump": "test -f ../tools/release/version-bump.mjs || { echo \"FEHLER: ../tools/release/ fehlt.\" >&2; exit 1; }; node ../tools/release/version-bump.mjs",
+    "preflight": "test -f ../tools/release/preflight.mjs || { echo \"FEHLER: ../tools/release/ fehlt.\" >&2; exit 1; }; node ../tools/release/preflight.mjs",
+    "deploy": "npm run build && cp main.js manifest.json styles.css \"${OBSIDIAN_PLUGIN_DIR:?set OBSIDIAN_PLUGIN_DIR}\"/",
+    "smoke:gui": "esbuild scripts/gui-smoke.ts --bundle --platform=node --format=esm --outfile=.gui-smoke.mjs --log-level=warning && node .gui-smoke.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "esbuild": "^0.21.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.4.1",
+    "obsidian": "^1.13.1",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^1.6.0"
+  }
+}

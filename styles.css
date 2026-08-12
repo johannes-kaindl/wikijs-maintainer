@@ -1,0 +1,23 @@
+/* Wiki.js Maintainer — nur Theme-CSS-Variablen, keine festen Farben (UI-STANDARD.md). */
+
+.wikijs-diff {
+  max-height: 50vh;
+  overflow: auto;
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+}
+.wikijs-diff-line { white-space: pre-wrap; padding: 0 var(--size-2-2); }
+.wikijs-diff-add { background-color: var(--background-modifier-success); }
+.wikijs-diff-del { background-color: var(--background-modifier-error); }
+
+.wikijs-collision {
+  border-left: 3px solid var(--text-error);
+  padding: var(--size-2-2) var(--size-4-2);
+  margin-bottom: var(--size-4-2);
+}
+/* Hinweis, kein Fehler -- deshalb die Warn-Farbe, nicht die Fehler-Farbe. */
+.wikijs-ambiguous {
+  border-left: 3px solid var(--text-warning);
+  padding: var(--size-2-2) var(--size-4-2);
+  margin-bottom: var(--size-4-2);
+}
