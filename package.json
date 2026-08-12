@@ -1,6 +1,6 @@
 {
   "name": "wikijs-maintainer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Obsidian plugin that syncs a vault folder to a Wiki.js 2.x instance via GraphQL.",
   "license": "AGPL-3.0-or-later",
