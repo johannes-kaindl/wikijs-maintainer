@@ -63,7 +63,7 @@ jobs:
       # Release entsteht — der Tag steht dann auf beiden Forgen, das Release
       # fehlt, und `release.mjs` hat laengst "veroeffentlicht" gemeldet.
       # Gemessen 2026-08-12 an wikijs-maintainer 0.1.0. Wird das Repo spaeter
-      # oeffentlich (Store-Einreichung), greift die Attestation von selbst.
+      # oeffentlich, greift die Attestation von selbst.
       - name: Attest build provenance
         if: ${{ !github.event.repository.private }}
         uses: actions/attest-build-provenance@v4
