@@ -6,7 +6,7 @@ Obsidian-Plugin, das einen Ordner des Vaults per **GraphQL** mit einer
 
 ## Status
 
-**MVP fertig, ungereleast, gegen die echte Instanz geprüft (2026-08-12)** — alle
+**0.1.1 veröffentlicht, öffentlich, Store-Einreichung offen (2026-08-12)** — alle
 17 Plan-Tasks umgesetzt: Sync-Kern (`sync-plan`/`snapshot`/`transform`/`links`/
 `paths`/`diff`), GraphQL-Client gegen das gemessene Schema (`docs/LAB.md`), die
 vier Commands, Status-Ansicht, Konflikt- und Entfernen-Dialog, i18n DE/EN.
@@ -25,9 +25,14 @@ die 194 grüne Unit-Tests nicht sehen konnten — alle drei behoben:
 Bedienung und Grenzen: `README.md`; Prüfliste gegen echtes Obsidian + echte
 Instanz: `docs/SMOKE.md` (sieben Punkte automatisch, der Rest Handarbeit);
 CHANGELOG-Abschnitt `[0.1.0]`.
-Noch offen: Erst-Release (Skill `plugin-release-setup`) + Store-Einreichung
-über das Developer Dashboard — beides braucht Johannes' Accounts, s. Dach-
-`AGENTS.md` „Store-Einreichung".
+Releases: **0.1.1** auf Forgejo (Quelle) und GitHub (Mirror), beide öffentlich,
+Assets und Build-Attestation vorhanden. Noch offen ist allein die
+**Store-Einreichung** über das Developer Dashboard auf `community.obsidian.md`
+(GitHub-Account verbinden, Repo wählen) — das kann nur der Maintainer.
+
+**0.1.0 gibt es nicht als öffentliches Release:** die Historie wurde vor dem
+Öffentlichmachen neu aufgesetzt (der Vorgänger nannte an mehreren Stellen die
+private Instanz), und der zugehörige Tag wurde dabei entfernt.
 Verbindliche Spec: `2026-08-09-wikijs-gesamt-design.md`, Abschnitte 2
 (Plugin-Architektur) und 3 (Sync-Semantik) — sie liegt in einem privaten Repo des
 Maintainers. Plan: `docs/superpowers/plans/2026-08-09-wikijs-maintainer-mvp.md`.
