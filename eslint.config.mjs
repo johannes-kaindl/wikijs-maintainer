@@ -1,37 +1,30 @@
+// Kanonischer Kern — Quelle: obsidian-plugins/tools/release-template/eslint.config.mjs.
+// NIE von Hand editieren: tools/template_drift_check.py prueft Byte-Gleichheit gegen das
+// Template; Aenderungen passieren IM Template und rollen per Vendoring in alle Repos.
+//
+// Das ist der lokale Spiegel des Community-Store-Scanners — dieselbe Regelquelle
+// (eslint-plugin-obsidianmd), damit `npm run lint` == Store-Scan gilt. Repo-eigene
+// Abweichungen (parserOptions aufs richtige tsconfig, begruendete file-scoped
+// Overrides) gehoeren AUSSCHLIESSLICH nach ./eslint.overrides.mjs. Inline-
+// `eslint-disable` blockt scripts/check-no-inline-disables.mjs im lint-Script.
 import obsidianmd from "eslint-plugin-obsidianmd";
+import overrides from "./eslint.overrides.mjs";
 
-// ESLint v9 flat config — der lokale Spiegel des Community-Store-Scanners.
 export default [
   {
     ignores: [
       "main.js",
-      "coverage/**",
       "node_modules/**",
+      "coverage/**",
       "tests/**",
-      ".remember/**",
       "docs/**",
+      "scripts/**",
+      ".remember/**",
       "*.config.mjs",
       "*.config.ts",
       "*.config.js",
     ],
   },
   ...obsidianmd.configs.recommended,
-  {
-    files: ["src/**/*.ts"],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.build.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
-  },
-  {
-    // display() ist ab 1.13 deprecated; minAppVersion ist 1.8.7, der Fallback-Pfad
-    // des Kit-Walkers ist deshalb bewusst noetig. confirm.ts ist verbatim aus
-    // obsidian-kit vendored (nie von Hand editieren).
-    files: ["src/obsidian/settings.ts", "src/vendor/kit-obsidian/confirm.ts"],
-    rules: {
-      "@typescript-eslint/no-deprecated": "off",
-    },
-  },
+  ...overrides,
 ];

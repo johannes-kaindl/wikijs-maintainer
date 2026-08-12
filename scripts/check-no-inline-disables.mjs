@@ -1,14 +1,16 @@
 // Store-Review-Gate: KEIN inline `// eslint-disable*` in src/.
+// Kanonische Fassung: obsidian-plugins/tools/release-template/scripts/ — nie von Hand
+// editieren, Aenderungen im Template (template_drift_check.py prueft Byte-Gleichheit).
 //
 // Warum ein eigenes Gate: die Obsidian-Community-Store-Review wertet ein Inline-disable einer
-// `obsidianmd/*`-Regel als ERROR — unabhaengig davon, wie gut es begruendet ist. Das hat zwei
-// Releases gekostet (0.3.1 und 0.6.1 waren beide reine Wartungs-Releases dafuer), weil die
-// Konvention zwar oben in eslint.config.mjs steht, aber nichts sie erzwungen hat: ein disable
+// `obsidianmd/*`-Regel als ERROR — unabhaengig davon, wie gut es begruendet ist. Das hat
+// zwei reine Wartungs-Releases gekostet (obsidian-transmute 0.3.1 und 0.6.1), weil die
+// Konvention zwar in eslint.config.mjs stand, aber nichts sie erzwungen hat: ein disable
 // laesst `npm run lint` gruen durchlaufen und faellt erst Tage spaeter im Review auf.
 //
-// Konsequenz: eine Regel, die stoert, wird entweder im Code aufgeloest (0.6.1: `document` →
+// Konsequenz: eine Regel, die stoert, wird entweder im Code aufgeloest (z. B. `document` →
 // `workspace.rootSplit.doc`; Placeholder umformuliert) oder als file-scoped Override mit
-// Begruendung in eslint.config.mjs eingetragen — dort ist sie sichtbar und reviewbar.
+// Begruendung in eslint.overrides.mjs eingetragen — dort ist sie sichtbar und reviewbar.
 // Beides ist store-tauglich, das Inline-disable nicht.
 //
 // Das Gate blockt ALLE Inline-disables, nicht nur `obsidianmd/*`: die Regel-Herkunft steht dem
@@ -37,7 +39,7 @@ walk("src");
 if (hits.length) {
   console.error("Inline eslint-disable is not allowed in src/ (community store rejects it):");
   for (const h of hits) console.error(`  ${h}`);
-  console.error("\nFix the code, or add a justified file-scoped override in eslint.config.mjs.");
+  console.error("\nFix the code, or add a justified file-scoped override in eslint.overrides.mjs.");
   process.exit(1);
 }
 console.log("no inline eslint-disable OK");
