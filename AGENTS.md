@@ -6,7 +6,7 @@ Obsidian-Plugin, das einen Ordner des Vaults per **GraphQL** mit einer
 
 ## Status
 
-**0.1.1 veröffentlicht, öffentlich, Store-Einreichung offen (2026-08-12)** — alle
+**0.1.1 im Community Store gelistet (2026-08-12)** — alle
 17 Plan-Tasks umgesetzt: Sync-Kern (`sync-plan`/`snapshot`/`transform`/`links`/
 `paths`/`diff`), GraphQL-Client gegen das gemessene Schema (`docs/LAB.md`), die
 vier Commands, Status-Ansicht, Konflikt- und Entfernen-Dialog, i18n DE/EN.
@@ -26,9 +26,16 @@ Bedienung und Grenzen: `README.md`; Prüfliste gegen echtes Obsidian + echte
 Instanz: `docs/SMOKE.md` (sieben Punkte automatisch, der Rest Handarbeit);
 CHANGELOG-Abschnitt `[0.1.0]`.
 Releases: **0.1.1** auf Forgejo (Quelle) und GitHub (Mirror), beide öffentlich,
-Assets und Build-Attestation vorhanden. Noch offen ist allein die
-**Store-Einreichung** über das Developer Dashboard auf `community.obsidian.md`
-(GitHub-Account verbinden, Repo wählen) — das kann nur der Maintainer.
+Assets und Build-Attestation vorhanden. Im Community Store gelistet seit 2026-08-12:
+`community.obsidian.md/plugins/wikijs-maintainer` — Review beim ersten Anlauf
+bestanden, ohne Warnungen. Der lokale Vorlauf war `npm run lint` (das ist
+derselbe `eslint-plugin-obsidianmd`, den der Store fährt), zusätzlich einmal
+gegen dessen `all`-Konfiguration statt nur `recommended`.
+
+**Für jede weitere Version gilt:** ein neues GitHub-Release wird erfasst, aber
+der Review **läuft nicht von selbst an** — er muss im Developer Dashboard als
+Rescan angestoßen werden. Fällt er durch, verschwindet das Plugin binnen 24 h
+aus der Suche, nicht nur die Version.
 
 **0.1.0 gibt es nicht als öffentliches Release:** die Historie wurde vor dem
 Öffentlichmachen neu aufgesetzt (der Vorgänger nannte an mehreren Stellen die
