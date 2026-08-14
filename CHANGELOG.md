@@ -5,6 +5,8 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-08-14
+
 ### Added
 - **Ausgang aus „Belegt".** Die Status-Ansicht bietet für einen belegten Slug
   „Seite übernehmen": das Plugin holt die Wiki-Seite und trägt den fehlenden
