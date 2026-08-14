@@ -3,7 +3,7 @@
 import { ItemView, Notice, Setting, type WorkspaceLeaf } from "obsidian";
 import { statusLabelKey, type SyncEntry } from "../core/sync-plan";
 import { t } from "../vendor/kit/i18n";
-import { describeOutcome, describePullOutcome } from "./describe-outcome";
+import { describeAdopt, describeError, describeOutcome, describePullOutcome } from "./describe-outcome";
 import type { BuiltPlan, SyncService } from "./sync-service";
 
 export const VIEW_TYPE_WIKIJS_STATUS = "wikijs-status";
@@ -97,7 +97,9 @@ export class WikijsStatusView extends ItemView {
   private renderRow(container: HTMLElement, entry: SyncEntry, plan: BuiltPlan, isBlocked: boolean): void {
     const row = new Setting(container).setName(entry.wikiPath).setDesc(t(statusLabelKey(entry.state)));
     if (isBlocked) {
-      row.setDesc(t("status.collision"));
+      // Beides, nicht nur die Kollision: der Zustand sagt, was ohne sie passieren wuerde
+      // — bis 2026-08-14 ersetzte der Hinweis ihn und nahm dem Nutzer diese Information.
+      row.setDesc(`${t(statusLabelKey(entry.state))} · ${t("status.collision")}`);
       return;
     }
     if (PUSHABLE.has(entry.state)) {
@@ -119,6 +121,66 @@ export class WikijsStatusView extends ItemView {
         }),
       );
     }
+    // Der einzige Ausgang aus "occupied" (s. adoptOccupied): er schreibt nie ins Wiki
+    // und uebernimmt nur, wenn die Seite drueben Zeichen fuer Zeichen unsere Fassung traegt.
+    if (entry.state === "occupied") {
+      row.addButton((b) =>
+        b.setButtonText(t("view.adopt")).onClick(async () => {
+          await this.handleAdopt(entry.wikiPath);
+          await this.refresh();
+        }),
+      );
+    }
+    // Der einzige Ausgang aus "stale-snapshot": weder Push noch Pull greifen dort
+    // (kein local, kein remote), die Zeile stand deshalb dauerhaft ohne Handhabe da.
+    if (entry.state === "stale-snapshot") {
+      row.addButton((b) =>
+        b.setButtonText(t("view.forget")).onClick(async () => {
+          await this.handleForget(entry.wikiPath);
+          await this.refresh();
+        }),
+      );
+    }
+  }
+
+  private async handleAdopt(wikiPath: string): Promise<void> {
+    try {
+      const service = this.service();
+      const freshPlan = await service.buildPlan();
+      const freshEntry = freshPlan.entries.find((e) => e.wikiPath === wikiPath);
+      if (freshEntry === undefined) {
+        new Notice(t("notice.vanished", wikiPath));
+        return;
+      }
+      const freshMeta = freshPlan.meta.get(wikiPath);
+      if (freshMeta === undefined) {
+        new Notice(t("notice.noLocal", wikiPath));
+        return;
+      }
+      const outcome = await service.adoptOccupied(freshEntry, freshMeta);
+      new Notice(describeAdopt(outcome, wikiPath));
+    } catch (err) {
+      new Notice(describeError(err));
+    }
+  }
+
+  /** Wie handlePush: der Klick baut den Plan neu, statt auf der Momentaufnahme des
+   *  letzten Refresh zu handeln — ein Snapshot kann zwischen Anzeige und Klick wieder
+   *  eine Seite bekommen haben (z.B. weil die Notiz zurueckkam). */
+  private async handleForget(wikiPath: string): Promise<void> {
+    try {
+      const service = this.service();
+      const freshPlan = await service.buildPlan();
+      const freshEntry = freshPlan.entries.find((e) => e.wikiPath === wikiPath);
+      if (freshEntry === undefined) {
+        new Notice(t("notice.vanished", wikiPath));
+        return;
+      }
+      const outcome = await service.forgetSnapshot(freshEntry);
+      new Notice(outcome.kind === "forgotten" ? t("notice.forgotten", wikiPath) : t("notice.notStale", wikiPath));
+    } catch (err) {
+      new Notice(describeError(err));
+    }
   }
 
   /** Important-Befund „Status-Ansicht handelt auf einer veralteten Momentaufnahme":
@@ -135,14 +197,29 @@ export class WikijsStatusView extends ItemView {
     try {
       const service = this.service();
       const freshPlan = await service.buildPlan();
-      if (freshPlan.collisions.some((c) => c.wikiPath === wikiPath)) return;
+      // Jeder dieser drei Ausgaenge fuehrt zu keinem Push -- aber schweigen darf keiner:
+      // der anschliessende refresh() zeigt zwar den echten Zustand, doch wer gerade auf
+      // einen Knopf gedrueckt hat, liest nicht die Zeile, sondern erwartet eine Antwort.
+      if (freshPlan.collisions.some((c) => c.wikiPath === wikiPath)) {
+        new Notice(t("notice.collision", wikiPath));
+        return;
+      }
       const freshEntry = freshPlan.entries.find((e) => e.wikiPath === wikiPath);
-      const freshMeta = freshEntry === undefined ? undefined : freshPlan.meta.get(wikiPath);
-      if (freshEntry === undefined || freshMeta === undefined) return;
+      if (freshEntry === undefined) {
+        new Notice(t("notice.vanished", wikiPath));
+        return;
+      }
+      const freshMeta = freshPlan.meta.get(wikiPath);
+      if (freshMeta === undefined) {
+        // Kein meta heisst: keine lokale Notiz mehr unter diesem Pfad -- fachlich
+        // dasselbe wie der `no-local`-Grund im Dienst, also auch dieselbe Meldung.
+        new Notice(t("notice.noLocal", wikiPath));
+        return;
+      }
       const outcome = await service.pushOne(freshEntry, freshMeta, freshPlan.collisions);
       new Notice(describeOutcome(outcome, wikiPath));
     } catch (err) {
-      new Notice(t("notice.error", err instanceof Error ? err.message : String(err)));
+      new Notice(describeError(err));
     }
   }
 
@@ -152,11 +229,14 @@ export class WikijsStatusView extends ItemView {
       const service = this.service();
       const freshPlan = await service.buildPlan();
       const freshEntry = freshPlan.entries.find((e) => e.wikiPath === wikiPath);
-      if (freshEntry === undefined) return;
+      if (freshEntry === undefined) {
+        new Notice(t("notice.vanished", wikiPath));
+        return;
+      }
       const outcome = await service.pullOne(freshEntry);
       new Notice(describePullOutcome(outcome, wikiPath));
     } catch (err) {
-      new Notice(t("notice.error", err instanceof Error ? err.message : String(err)));
+      new Notice(describeError(err));
     }
   }
 }

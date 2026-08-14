@@ -45,6 +45,18 @@ describe("vaultPathToWikiPath", () => {
   it("slugifiziert jedes Segment einzeln, nicht den Gesamtpfad", () => {
     expect(vaultPathToWikiPath("_published/Netzwerk & DNS/Über uns.md", "_published")).toBe("netzwerk-dns/ueber-uns");
   });
+
+  it("schneidet eine fremde Dateiendung ab, statt sie in den Slug zu ziehen", () => {
+    expect(vaultPathToWikiPath("_published/Not-A-Page.canvas", "_published")).toBe("not-a-page");
+  });
+
+  it("laesst einen Punkt im Notiznamen unangetastet — nur die echte Endung faellt", () => {
+    expect(vaultPathToWikiPath("_published/Node.js Grundlagen.md", "_published")).toBe("nodejs-grundlagen");
+  });
+
+  it("haelt eine endungslose Datei fuer endungslos", () => {
+    expect(vaultPathToWikiPath("_published/LICENSE", "_published")).toBe("license");
+  });
 });
 
 describe("wikiPathToVaultPath", () => {

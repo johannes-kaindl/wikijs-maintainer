@@ -5,6 +5,42 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Added
+- **Ausgang aus „Belegt".** Die Status-Ansicht bietet für einen belegten Slug
+  „Seite übernehmen": das Plugin holt die Wiki-Seite und trägt den fehlenden
+  Snapshot **nur dann** nach, wenn ihr Inhalt Zeichen für Zeichen der eigenen
+  Fassung entspricht. Damit ist genau der Weg abgedeckt, auf dem dieser Zustand
+  tatsächlich entsteht (Seite angelegt, Snapshot-Schreiben danach gescheitert).
+  Weicht der Inhalt ab, ist es eine fremde Seite — dann wird nichts übernommen
+  und das auch gesagt. Der Weg schreibt nie ins Wiki.
+- **Ausgang aus „Veralteter Snapshot".** Zeilen ohne lokale Notiz und ohne
+  Wiki-Seite bekommen „Snapshot verwerfen". Der Dienst verweigert das Löschen,
+  solange eines von beiden noch existiert: ein Snapshot ist die Grundlage jedes
+  späteren Drift-Vergleichs.
+
+### Fixed
+- **Drei stille Abbrüche in der Status-Ansicht melden sich.** Eine zwischen
+  Anzeige und Klick entstandene Slug-Kollision, ein verschwundener Eintrag und
+  eine fehlende lokale Notiz führten zu keinem Push **und** zu keiner Meldung.
+- **Die Status-Ansicht liest die Fehlereinstufung des Clients.** Ein abgelehnter
+  API-Schlüssel erschien dort weiterhin als nacktes „Forbidden" — derselbe
+  Befund, der am 2026-08-12 für die Commands behoben wurde, eine Tür weiter.
+- **Fremde Dateiendungen werden abgeschnitten statt in den Slug gezogen.**
+  `Not-A-Page.canvas` ergab den Pfad `not-a-pagecanvas`; Notiznamen mit Punkt
+  (`Node.js Grundlagen.md`) bleiben unberührt.
+- **Ein unvollständiger Plan-Eintrag wird nicht mehr als Slug-Kollision
+  gemeldet.** Er hat einen eigenen Grund und eine eigene Meldung; die alte
+  schickte den Nutzer auf die Suche nach einer Seite, die es nicht gibt.
+- **Der Kollisionshinweis verdeckt die Zustandsbeschriftung nicht mehr** — die
+  Zeile zeigt beides.
+
+### Changed
+- Blockierungsgründe sind jetzt typmäßig erschöpfend behandelt (`assertNever`):
+  ein neuer Grund ohne eigene Meldung bricht den Build, statt in der zuletzt
+  genannten Meldung zu landen. Genau dieser Weg hatte den Fehler oben erzeugt.
+- 235 Tests (vorher 225), darunter der bis dahin ungetestete Schreib-Adapter,
+  der beim Pull Dateien im Vault anlegt.
+
 ## [0.1.1] — 2026-08-12
 
 ## [0.1.0] — 2026-08-12

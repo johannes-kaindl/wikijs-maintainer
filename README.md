@@ -37,7 +37,8 @@ Obsidian plugin that publishes and syncs notes from one folder of your vault to 
 
 ## Install
 
-Not on the Community Store yet (MVP, unreleased).
+From Obsidian: **Settings → Community plugins → Browse**, search for
+"Wiki.js Maintainer". (Listed since 2026-08-12.)
 
 ### Manual
 
@@ -143,17 +144,24 @@ Four commands, all from the command palette:
   Wiki.js admin) while its note still exists locally, the status view shows
   "Removed on wiki" and no push is offered for it. Recreating a deleted page
   from the local note isn't supported yet — that's planned for a later
-  version. The snapshot for that page also isn't cleaned up automatically
-  (see "Stale snapshot" below); nothing in the vault is affected.
-- **Occupied has no resolution path.** A page can appear as "Occupied" when a
-  local note and a wiki page happen to map onto the same wiki path without a
-  known relationship between them (no snapshot ties them together). The
-  status view blocks the push but offers no button to fix this — rename the
-  local note, or the wiki page, so the paths no longer collide.
-- **Stale snapshots aren't cleaned up.** If both the local note and the wiki
-  page a snapshot pointed at are gone, the snapshot file stays in the
-  plugin's data folder. It doesn't affect syncing; it's just unused disk
-  space.
+  version. The snapshot for that page also isn't cleaned up on its own
+  (see "Stale snapshots" below); nothing in the vault is affected.
+- **Occupied is only resolved when the page is provably yours.** A page shows
+  as "Occupied" when a local note and a wiki page map onto the same wiki path
+  without a snapshot tying them together. The status view offers **Adopt
+  page**, which fetches the wiki page and — *only* if its content matches
+  your note character for character — writes the missing snapshot, after
+  which the page syncs normally. That covers the way this state actually
+  arises: the page was created successfully and writing the snapshot failed
+  right after. If the content differs, the page is a different page and
+  nothing is adopted; you are told so, and the fix stays manual (rename the
+  local note, or remove the page in the wiki). Adopting never writes to the
+  wiki.
+- **Stale snapshots are discarded on request, not automatically.** If both the
+  local note and the wiki page a snapshot pointed at are gone, the status view
+  offers **Discard snapshot** for that row. Nothing is discarded on its own —
+  a snapshot is the basis of every later drift check, so removing one is
+  always your call.
 
 ## Requirements
 

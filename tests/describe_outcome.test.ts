@@ -44,6 +44,12 @@ describe("describeOutcome", () => {
     expect(msg).toBe(t("notice.remoteDeleted", "a"));
   });
 
+  it("nennt einen unvollstaendigen Plan-Eintrag beim Namen, statt ihn als Slug-Kollision auszugeben", () => {
+    const msg = describeOutcome({ kind: "blocked", reason: "incomplete" }, "a");
+    expect(msg).toBe(t("notice.incomplete", "a"));
+    expect(msg).not.toBe(t("notice.occupied", "a"));
+  });
+
   // Erschoepfende Union: TS soll bei jedem neuen PushOutcome-Zweig hier auffallen,
   // wenn describeOutcome ihn nicht behandelt (kein "sonst"-Fallback fuer reason mehr).
   it("deckt jede PushOutcome-Variante ab", () => {
@@ -56,6 +62,7 @@ describe("describeOutcome", () => {
       { kind: "blocked", reason: "occupied" },
       { kind: "blocked", reason: "no-local" },
       { kind: "blocked", reason: "remote-deleted" },
+      { kind: "blocked", reason: "incomplete" },
     ];
     for (const o of outcomes) expect(() => describeOutcome(o, "a")).not.toThrow();
   });

@@ -18,7 +18,7 @@
 
 | Datum | Obsidian | Ergebnis | Gegenprobe |
 |---|---|---|---|
-| 2026-08-12 | 1.13.7 | **7/7 automatisch grün** · Hand-Punkte 1–11 durch Johannes bis Punkt 11 | `unpublishPage` ohne `content`/`tags` ausgebaut → **genau Punkt 3 rot** (`isPublished=true`, das historische Symptom), übrige 6 grün |
+| 2026-08-12 | 1.13.7 | **7/7 automatisch grün** · Hand-Punkte 1–11 durch Johannes bis Punkt 11 (Nummerierung von damals — die Punkte 12–15 kamen erst mit 0.1.2 dazu) | `unpublishPage` ohne `content`/`tags` ausgebaut → **genau Punkt 3 rot** (`isPublished=true`, das historische Symptom), übrige 6 grün |
 
 **Was der erste Durchlauf gefunden hat** (beides behoben): `pages.update` verlangt
 `content` und `tags`, obwohl das Schema sie als optional führt — jedes
@@ -34,7 +34,7 @@ Einstufung nie und zeigte das nackte Wort „Forbidden".
 - **Der Settings-Tab** (Punkt: „rendert alle Einstellungen"): Obsidian 1.13 gibt
   das Tab-DOM nicht zuverlässig her, und der Nutzen wäre gering — dass der Tab
   rendert, sieht man beim ersten Blick.
-- **Die Sprachumstellung** (Punkt 15): sie schriebe nach `.obsidian/` und änderte
+- **Die Sprachumstellung** (Punkt 19): sie schriebe nach `.obsidian/` und änderte
   damit den Wirt. Der Treiber prüft stattdessen, dass keine rohen i18n-Schlüssel
   in der Oberfläche stehen — die eigentliche Regressionsgefahr.
 
@@ -98,9 +98,32 @@ Jede Zeile: eine abhakbare Beobachtung.
       für die betroffene Seite möglich** (keine Sperre); im gepushten
       Wiki-Text bleibt `[[Name]]` als Klartext statt als Link.
 
+## Sackgassen-Ausgänge (seit 0.1.2)
+
+Beide Wege schreiben **nie** ins Wiki — schlimmstenfalls tun sie nichts. Deshalb
+stehen sie hier und nicht im Treiber: der Zustand müsste künstlich hergestellt
+werden, und der Gewinn wäre kein neuer Schreibpfad, sondern nur die Verdrahtung
+des Knopfes.
+
+- [ ] 12. **Belegter Slug, eigene Seite.** Eine Notiz pushen, danach ihre
+      Snapshot-Datei im Plugin-Datenordner (`snapshots/*.json`) löschen →
+      Status-Ansicht zeigt „Belegt" mit dem Knopf **„Seite übernehmen"** →
+      Klick meldet die Übernahme, und nach dem Refresh ist die Zeile normal
+      (unverändert/aktualisierbar).
+- [ ] 13. **Belegter Slug, fremde Seite.** Dieselbe Lage, aber die Wiki-Seite
+      vorher **im Wiki ändern** → „Seite übernehmen" übernimmt **nichts** und
+      sagt, dass der Inhalt abweicht. Die Wiki-Seite bleibt unangetastet.
+- [ ] 14. **Verwaister Snapshot.** Eine gesyncte Seite im Wiki löschen **und**
+      die lokale Notiz löschen → Status-Ansicht zeigt „Veralteter Snapshot"
+      mit dem Knopf **„Snapshot verwerfen"** → Klick entfernt die Datei aus
+      `snapshots/`, die Zeile verschwindet.
+- [ ] 15. **Kein stiller Abbruch.** Status-Ansicht offen lassen, die Notiz
+      einer Zeile **außerhalb** von Obsidian löschen, dann in der alten
+      Ansicht auf „Push" drücken → es erscheint eine Meldung (nicht nichts).
+
 ## Sammel-Push und Fehlerfälle
 
-- [ ] 12. Mehrere offene Änderungen, eine Seite künstlich zum Scheitern
+- [ ] 16. Mehrere offene Änderungen, eine Seite künstlich zum Scheitern
       bringen (z. B. Wiki während des Laufs kurz abschalten oder eine
       Kollision einbauen) → „Alle Änderungen pushen" läuft für die übrigen
       Seiten sequenziell weiter, Abschluss-Notice nennt sowohl die
@@ -108,14 +131,14 @@ Jede Zeile: eine abhakbare Beobachtung.
 
 ## Fehlermeldungen
 
-- [ ] 13. Wiki-Instanz abschalten/unerreichbar machen → Push → verständliche
+- [ ] 17. Wiki-Instanz abschalten/unerreichbar machen → Push → verständliche
       Fehlermeldung erscheint binnen des eingestellten Zeitlimits, Obsidian
       friert währenddessen nicht ein.
-- [ ] 14. Falschen API-Key eintragen → Push → Meldung benennt Authentifizierung
+- [ ] 18. Falschen API-Key eintragen → Push → Meldung benennt Authentifizierung
       (nicht „unbekannter Fehler").
 
 ## i18n
 
-- [ ] 15. Obsidian-Sprache auf Englisch stellen → Settings-Tab, Commands,
+- [ ] 19. Obsidian-Sprache auf Englisch stellen → Settings-Tab, Commands,
       Status-Ansicht, Konflikt-Dialog und Entfernen-Dialog zeigen
       ausschließlich englische Texte.

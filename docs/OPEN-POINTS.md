@@ -1,6 +1,7 @@
 # Offene Punkte nach dem MVP
 
-Stand 2026-08-10, nach Abschluss des MVP-Plans (`docs/superpowers/plans/2026-08-09-wikijs-maintainer-mvp.md`)
+Stand 2026-08-14 (Wartungsrunde 0.1.2 abgearbeitet — s. § „Erledigt in 0.1.2" unten).
+Ursprünglicher Stand 2026-08-10, nach Abschluss des MVP-Plans (`docs/superpowers/plans/2026-08-09-wikijs-maintainer-mvp.md`)
 und der Gesamtreview über den Branch. Alles hier ist **bewusst zurückgestellt**, nicht vergessen —
 jede Zeile wurde in einer Review benannt und einzeln triagiert.
 
@@ -26,27 +27,23 @@ Diese stehen auch in `README.md`; hier mit dem technischen Grund.
   Wer sie will, kopiert aus dem Diff-Dialog oder gleicht die lokale Datei von Hand an.
 - **`remote-deleted` hat keinen Wiederanlege-Pfad.** Eine im Wiki gelöschte Seite wird beim Push
   blockiert statt neu erzeugt.
-- **`occupied` ist eine Sackgasse.** Kein Command und kein Knopf löst den Zustand auf; die
-  Wiki-Seite muss von Hand gelöscht werden. Erreichbar u.a., wenn `createPage` gelingt und
-  das Schreiben des Snapshots danach scheitert.
-- **Verwaiste Snapshots werden nicht aufgeräumt.** Wird eine Seite zuerst im Wiki und dann lokal
-  gelöscht, bleibt die Snapshot-Datei liegen und die Zeile „Veralteter Snapshot" steht dauerhaft
-  in der Status-Ansicht.
+- ~~**`occupied` ist eine Sackgasse.**~~ Aufgelöst in 0.1.2, aber nur für den Fall, in dem der
+  Zustand nachweislich aus einem eigenen Push stammt (Wiki-Inhalt = eigene Fassung). Bei einer
+  echten Fremdseite bleibt es Handarbeit im Wiki — mit Meldung statt Schweigen.
+- ~~**Verwaiste Snapshots werden nicht aufgeräumt.**~~ Aufgelöst in 0.1.2: „Snapshot verwerfen"
+  je Zeile. Bewusst kein automatisches Aufräumen — ein Snapshot ist die Grundlage jedes späteren
+  Drift-Vergleichs, sein Verlust ist eine Nutzerentscheidung.
 
 ## Aus der Gesamtreview, nicht blockierend
 
 - **Drei `buildPlan()`-Läufe je Klick in der Status-Ansicht** (Refresh, Klick, Nach-Refresh).
   Jeder macht ein `listPages()` gegen die Instanz. Der Preis dafür, dass der Klick auf frischem
   Stand handelt — für einen kleinen VPS vertretbar, aber zusammenlegbar.
-- **Zwei Abbruchgründe im Klick-Handler melden nichts:** eine inzwischen entstandene Kollision
-  und ein verschwundener Eintrag führen zu keinem Push, aber auch zu keiner Meldung. Erfüllt den
-  Buchstaben von „kein Push", reibt sich mit dem Geist von „nichts stillschweigend".
-- **`sync-service.ts` nutzt `reason: "occupied"` noch an einer weiteren Stelle** für einen Fall,
-  der keine Slug-Kollision ist (`pageId`/`snapshot` fehlen). Derselbe Fehlertyp, der anderswo
-  bereits zu `"no-local"` korrigiert wurde.
-- **`vaultPathToWikiPath` verschluckt fremde Dateiendungen** statt sie abzuschneiden:
-  `Not-A-Page.canvas` wird zu `not-a-pagecanvas`. Fachlich harmlos (die Datei ist ohnehin nicht
-  syncbar), aber die Meldung zeigt dem Nutzer einen sinnlosen Pfad.
+- ~~**Zwei Abbruchgründe im Klick-Handler melden nichts.**~~ Behoben in 0.1.2 — es waren drei
+  (der fehlende `meta`-Fall kam beim Anfassen dazu), und der Pull hatte denselben.
+- ~~**`sync-service.ts` nutzt `reason: "occupied"` an einer weiteren Stelle.**~~ Behoben in
+  0.1.2: eigener Grund `incomplete` mit eigener Meldung.
+- ~~**`vaultPathToWikiPath` verschluckt fremde Dateiendungen.**~~ Behoben in 0.1.2.
 
 ## Zurückgestellte Kleinbefunde aus den Task-Reviews
 
@@ -74,13 +71,26 @@ Alle als „kann bleiben" triagiert. Sortiert nach Ort.
   Metadaten des ersten. Downstream ist durch den Pflichtparameter `collisions` gedeckt.
 - `obsidian/vault-source.ts`: `vaultPathToWikiPath` wird je Datei viermal berechnet, und
   `cachedRead` läuft serialisiert. Laufzeit, nicht Korrektheit.
-- `obsidian/status-view.ts`: bei einer blockierten Zeile überschreibt der Kollisionshinweis die
-  Zustandsbeschriftung, statt beides zu zeigen.
+- ~~`obsidian/status-view.ts`: bei einer blockierten Zeile überschreibt der Kollisionshinweis die
+  Zustandsbeschriftung.~~ Behoben in 0.1.2 (lag in derselben Funktion).
 - `main.ts`: zwischen dem Bauen des Plans und dem Schreiben beim Pull liegt ein schmales Fenster,
   in dem eine lokale Änderung verloren ginge.
 - `main.ts`: der Ordner-Anlege-Lauf des Schreib-Adapters prüft und legt in zwei Schritten an —
   bei zwei echt gleichzeitigen Pulls könnte der zweite Aufruf auf einen bereits angelegten
   Ordner treffen und werfen. Landet im `catch` und wird als Meldung sichtbar.
-- Testabdeckung: `main.ts` hat inzwischen Tests (`tests/main_commands.test.ts`), aber nicht für
-  jeden Zweig. Die Gesamtreview hat diese Lücke ausdrücklich als die riskanteste benannt —
-  genau dort lebte der eine Eintrittspunkt-Fehler, den die Umsetzung produziert hat.
+- ~~Testabdeckung: `main.ts` hat nicht für jeden Zweig Tests.~~ Geschlossen in 0.1.2 für die
+  Zweige, die der Nutzer erreicht: Sync-Ordner-Grenze, Ergebnis- und Fehlermeldungen aller drei
+  Eintrittspunkte, der Schreib-Adapter des Pulls und die `checkCallback`-Sichtbarkeit. Die neuen
+  Tests sind nachträglich geschrieben und deshalb einzeln per Mutation gegengeprüft (vier
+  Mutationen, jede bricht genau einen Test).
+
+## Erledigt in 0.1.2 (2026-08-14)
+
+Eine Wartungsrunde, kein neues Feature-Paket. Ausgewählt wurde nach **einer** Frage: trifft
+der Punkt den Nutzer im Betrieb? Das ergab fünf Meldungs-/Sackgassen-Befunde plus die
+Testlücke — dieselbe Fehlerklasse, die der erste echte GUI-Smoke am 2026-08-12 dreimal
+gefunden hat (das Plugin tut das Richtige und sagt es niemandem). Details im CHANGELOG.
+
+**Nicht angefasst und weiterhin offen:** Bilder/Anhänge (V2), der Wiederanlege-Pfad für
+`remote-deleted` (V2), der Drei-Wege-Merge (V3) und die drei `buildPlan()`-Läufe je Klick.
+Die verbleibenden Kleinbefunde oben bleiben als „kann bleiben" triagiert.

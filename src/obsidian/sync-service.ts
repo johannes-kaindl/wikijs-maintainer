@@ -15,9 +15,15 @@ import type { RemovalChoice } from "./removal-modal";
 export type PushOutcome =
   | { kind: "created" | "updated" }
   | { kind: "skipped"; reason: "unchanged" }
-  | { kind: "blocked"; reason: "drift" | "occupied" | "collision" | "no-local" | "remote-deleted" };
+  | { kind: "blocked"; reason: "drift" | "occupied" | "collision" | "no-local" | "remote-deleted" | "incomplete" };
 
 export type PullOutcome = { kind: "written"; vaultPath: string } | { kind: "skipped" };
+
+export type ForgetOutcome = { kind: "forgotten" } | { kind: "blocked"; reason: "not-stale" };
+
+export type AdoptOutcome =
+  | { kind: "adopted" }
+  | { kind: "blocked"; reason: "not-occupied" | "content-differs" | "incomplete" };
 
 export interface SyncDeps {
   client: WikiClient;
@@ -124,7 +130,12 @@ export class SyncService {
     }
 
     const pageId = entry.pageId;
-    if (pageId === undefined || entry.snapshot === undefined) return { kind: "blocked", reason: "occupied" };
+    // Kein "occupied": das hiesse "der Slug ist im Wiki schon von einer anderen Seite
+    // belegt" und schickte den Nutzer auf die Suche nach einer Seite, die es nicht gibt.
+    // Hier behauptet der Entry einen Update-Zustand, ohne die Daten dafuer mitzubringen.
+    // Ueber `planSync` unerreichbar (update/remote-changed/conflict tragen immer Snapshot
+    // und Remote) — aber `pushOne` ist oeffentlich, der Guard bleibt.
+    if (pageId === undefined || entry.snapshot === undefined) return { kind: "blocked", reason: "incomplete" };
 
     // updatedAt ist ein GraphQL-Date, das ueber JSON als String ankommt (docs/LAB.md).
     // Der Drift-Guard vergleicht deshalb bewusst Zeichenketten, nicht Zeitpunkte.
@@ -229,5 +240,45 @@ export class SyncService {
       raw: page.content, pushed: page.content, remoteUpdatedAt: page.updatedAt,
     });
     return { kind: "written", vaultPath };
+  }
+
+  /** Einen verwaisten Snapshot vergessen: weder lokale Datei noch Wiki-Seite existieren
+   *  noch, der Snapshot beschreibt also einen Stand, zu dem es keine Seite mehr gibt.
+   *  Bis 2026-08-14 war das eine Sackgasse — Push half nicht (kein `local`), Pull half
+   *  nicht (kein `remote`), und die Zeile "Veralteter Snapshot" blieb dauerhaft stehen.
+   *
+   *  Die Zustandspruefung sitzt HIER und nicht nur in der Ansicht: ein Snapshot, zu dem
+   *  es noch eine lokale Datei oder eine Wiki-Seite gibt, ist die Vergleichsgrundlage
+   *  jedes kuenftigen Drift-Guards. Ihn zu loeschen machte den naechsten Push blind —
+   *  er saehe die Seite als `create` und legte sie ein zweites Mal an. */
+  /** Der Ausgang aus "occupied": lokale Datei da, Wiki-Seite unter demselben Slug da,
+   *  kein Snapshot — das Plugin weiss also nicht, ob die Seite drueben seine eigene ist.
+   *  Bis 2026-08-14 loeste das nichts auf; die Wiki-Seite musste von Hand geloescht werden.
+   *
+   *  Der dokumentierte Entstehungsweg ist nicht "fremde Seite im Weg", sondern:
+   *  `createPage` gelingt und das Schreiben des Snapshots danach scheitert. Dann ist die
+   *  Seite drueben unsere und traegt Zeichen fuer Zeichen, was wir gepusht haben — und
+   *  genau das ist hier die Bedingung. Sie ist mit Absicht so eng: ein Snapshot ist die
+   *  Behauptung "das haben wir gepusht", und der naechste Push handelt auf ihr. Weicht
+   *  der Inhalt ab, wird deshalb NICHT uebernommen — auch nicht "auf Wunsch". Dieser
+   *  Weg schreibt nie ins Wiki; er kann im schlimmsten Fall nichts tun. */
+  async adoptOccupied(entry: SyncEntry, meta: TransformResult): Promise<AdoptOutcome> {
+    if (entry.state !== "occupied") return { kind: "blocked", reason: "not-occupied" };
+    const pageId = entry.pageId;
+    if (pageId === undefined || entry.local === undefined) return { kind: "blocked", reason: "incomplete" };
+
+    const page = await this.deps.client.fetchPage(pageId);
+    if (page.content !== meta.content) return { kind: "blocked", reason: "content-differs" };
+    await this.deps.store.save({
+      version: 1, wikiPath: entry.wikiPath, pageId,
+      raw: entry.local.raw, pushed: meta.content, remoteUpdatedAt: page.updatedAt,
+    });
+    return { kind: "adopted" };
+  }
+
+  async forgetSnapshot(entry: SyncEntry): Promise<ForgetOutcome> {
+    if (entry.state !== "stale-snapshot") return { kind: "blocked", reason: "not-stale" };
+    await this.deps.store.remove(entry.wikiPath);
+    return { kind: "forgotten" };
   }
 }

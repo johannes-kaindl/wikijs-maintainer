@@ -155,6 +155,29 @@ describe("SyncService.pushOne", () => {
     expect(client.createPage).not.toHaveBeenCalled();
   });
 
+  // Der Guard vor dem Drift-Check faengt einen Entry ab, der einen Update-Zustand
+  // behauptet, aber die Daten dafuer nicht mitbringt. Ueber `planSync` ist das
+  // unerreichbar (update/remote-changed/conflict haben immer Snapshot UND Remote,
+  // und pageId faellt aus einem von beiden) — `pushOne` ist aber oeffentlich, der
+  // Guard bleibt also. Falsch war nur sein Etikett: "occupied" heisst "der Slug ist
+  // im Wiki schon von einer anderen Seite belegt" und hat mit einem unvollstaendigen
+  // Entry nichts zu tun. Die Meldung schickte den Nutzer damit auf die Suche nach
+  // einer Seite, die es nicht gibt.
+  it("unvollstaendiger Entry (kein pageId): eigener Grund statt der Slug-Kollisions-Meldung", async () => {
+    const { svc, client } = service();
+    const out = await svc.pushOne(entry({ pageId: undefined }), meta, noCollisions);
+    expect(out).toEqual({ kind: "blocked", reason: "incomplete" });
+    expect(client.fetchUpdatedAt).not.toHaveBeenCalled();
+    expect(client.updatePage).not.toHaveBeenCalled();
+  });
+
+  it("unvollstaendiger Entry (kein Snapshot bei state=update): derselbe eigene Grund", async () => {
+    const { svc, client } = service();
+    const out = await svc.pushOne(entry({ snapshot: undefined }), meta, noCollisions);
+    expect(out).toEqual({ kind: "blocked", reason: "incomplete" });
+    expect(client.updatePage).not.toHaveBeenCalled();
+  });
+
   it("stale-snapshot: weder lokal noch Remote — 'no-local' (kein local, also kein Push)", async () => {
     const { svc, client } = service();
     const out = await svc.pushOne(
@@ -165,5 +188,77 @@ describe("SyncService.pushOne", () => {
     expect(out).toEqual({ kind: "blocked", reason: "no-local" });
     expect(client.updatePage).not.toHaveBeenCalled();
     expect(client.createPage).not.toHaveBeenCalled();
+  });
+});
+
+// Ein Snapshot ohne lokale Datei UND ohne Wiki-Seite ("stale-snapshot") war bis
+// 2026-08-14 nicht wegzubekommen: die Zeile "Veralteter Snapshot" stand dauerhaft in
+// der Status-Ansicht, ohne dass irgendein Knopf sie aufloeste. Push half nicht (kein
+// local), Pull half nicht (kein remote) -- die Datei musste im Plugin-Datenordner von
+// Hand geloescht werden.
+describe("SyncService.forgetSnapshot", () => {
+  it("loescht den verwaisten Snapshot", async () => {
+    const { svc, store } = service();
+    const out = await svc.forgetSnapshot(entry({ state: "stale-snapshot", local: undefined, remote: undefined }));
+    expect(out).toEqual({ kind: "forgotten" });
+    expect(store.remove).toHaveBeenCalledWith("a");
+  });
+
+  // Die Pruefung sitzt im Dienst, nicht nur in der Ansicht: der Knopf ist die eine
+  // Stelle, an der ein Nutzer einen Snapshot verliert -- und ein Snapshot, zu dem es
+  // noch eine lokale Datei oder eine Wiki-Seite gibt, ist die Grundlage jedes
+  // kuenftigen Drift-Vergleichs. Ihn dort zu loeschen hiesse, den naechsten Push
+  // blind zu machen.
+  it("verweigert das Loeschen, solange der Snapshot noch gebraucht wird", async () => {
+    const { svc, store } = service();
+    const out = await svc.forgetSnapshot(entry({ state: "update" }));
+    expect(out).toEqual({ kind: "blocked", reason: "not-stale" });
+    expect(store.remove).not.toHaveBeenCalled();
+  });
+});
+
+// "occupied" heisst: lokale Datei da, Wiki-Seite unter demselben Slug da, aber kein
+// Snapshot — das Plugin weiss also nicht, ob die Seite drueben seine eigene ist. Bis
+// 2026-08-14 war das eine Sackgasse: kein Command und kein Knopf loeste sie auf, die
+// Wiki-Seite musste von Hand geloescht werden.
+//
+// Der dokumentierte Entstehungsweg ist aber ein anderer als "fremde Seite im Weg":
+// `createPage` gelingt und das Schreiben des Snapshots danach scheitert. Dann IST die
+// Seite drueben unsere, ihr Inhalt ist Zeichen fuer Zeichen das, was wir gepusht haben
+// — und genau daran laesst sich das pruefen, ohne irgendetwas zu ueberschreiben.
+describe("SyncService.adoptOccupied", () => {
+  const occupied = () => entry({ state: "occupied", snapshot: undefined, pageId: 7 });
+
+  it("traegt den fehlenden Snapshot nach, wenn die Wiki-Seite Zeichen fuer Zeichen unsere Fassung traegt", async () => {
+    const { svc, client, store } = service({
+      fetchPage: vi.fn(() => Promise.resolve({ id: 7, path: "a", title: "T", content: "neu", updatedAt: "T9" })),
+    });
+    const out = await svc.adoptOccupied(occupied(), meta);
+    expect(out).toEqual({ kind: "adopted" });
+    expect(store.save).toHaveBeenCalledWith({
+      version: 1, wikiPath: "a", pageId: 7, raw: "roh", pushed: "neu", remoteUpdatedAt: "T9",
+    });
+    expect(client.updatePage).not.toHaveBeenCalled();
+    expect(client.createPage).not.toHaveBeenCalled();
+  });
+
+  // Der wichtigere der beiden Faelle: eine fremde Seite unter demselben Slug darf NICHT
+  // uebernommen werden. Ein Snapshot waere hier die Behauptung "das haben wir gepusht",
+  // und der naechste Push wuerde sie auf Basis dieser Behauptung ueberschreiben.
+  it("uebernimmt NICHTS, wenn der Wiki-Inhalt abweicht — und schreibt keinen Snapshot", async () => {
+    const { svc, store } = service({
+      fetchPage: vi.fn(() => Promise.resolve({ id: 7, path: "a", title: "T", content: "fremder Text", updatedAt: "T9" })),
+    });
+    const out = await svc.adoptOccupied(occupied(), meta);
+    expect(out).toEqual({ kind: "blocked", reason: "content-differs" });
+    expect(store.save).not.toHaveBeenCalled();
+  });
+
+  it("verweigert die Uebernahme fuer jeden anderen Zustand", async () => {
+    const { svc, client, store } = service();
+    const out = await svc.adoptOccupied(entry({ state: "update" }), meta);
+    expect(out).toEqual({ kind: "blocked", reason: "not-occupied" });
+    expect(client.fetchPage).toBeUndefined();
+    expect(store.save).not.toHaveBeenCalled();
   });
 });

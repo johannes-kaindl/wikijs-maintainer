@@ -319,3 +319,213 @@ describe("WikijsStatusView — Ergebnis und Fehler werden als Notice sichtbar (I
     expect(noticeTexts()).toContain(t("notice.error", "network down"));
   });
 });
+
+// Der Klick baut den Plan neu (s. Kommentar an handlePush). Bis 2026-08-14 fuehrten
+// drei Ausgaenge dieses frischen Plans zu keinem Push UND zu keiner Meldung: eine
+// inzwischen entstandene Kollision, ein verschwundener Eintrag, ein fehlendes meta.
+// Das erfuellte den Buchstaben von "kein Push" und rieb sich mit dem Geist von
+// "nichts stillschweigend" -- derselbe Befund, den der erste GUI-Smoke schon einmal
+// als "Fehler: 2" ohne Ursache geliefert hat.
+describe("WikijsStatusView — kein stiller Abbruch im Klick-Handler", () => {
+  /** Erster buildPlan()-Aufruf liefert den Render-Plan, jeder weitere den Klick-Plan. */
+  function twoPlans(first: BuiltPlan, then: BuiltPlan, over: Record<string, unknown> = {}) {
+    let calls = 0;
+    return {
+      buildPlan: vi.fn(async () => (calls++ === 0 ? first : then)),
+      pushOne: vi.fn().mockResolvedValue({ kind: "updated" }),
+      pullOne: vi.fn().mockResolvedValue({ kind: "written", vaultPath: "x" }),
+      ...over,
+    } as unknown as SyncService;
+  }
+
+  const planWith = (wikiPath: string, over: Partial<BuiltPlan> = {}): BuiltPlan => ({
+    entries: [entry(wikiPath, "update")],
+    meta: new Map([[wikiPath, meta()]]),
+    collisions: [],
+    ambiguousNames: [],
+    ...over,
+  });
+
+  it("meldet eine zwischen Refresh und Klick entstandene Slug-Kollision", async () => {
+    const wikiPath = "a/late-collision.md";
+    const service = twoPlans(
+      planWith(wikiPath),
+      planWith(wikiPath, { collisions: [{ wikiPath, vaultPaths: ["A.md", "a.md"] }] }),
+    );
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.push"));
+
+    expect(noticeTexts()).toContain(t("notice.collision", wikiPath));
+    expect(service.pushOne).not.toHaveBeenCalled();
+  });
+
+  it("meldet einen Eintrag, der beim Klick nicht mehr im Plan steht", async () => {
+    const wikiPath = "a/vanished.md";
+    const service = twoPlans(
+      planWith(wikiPath),
+      { entries: [], meta: new Map(), collisions: [], ambiguousNames: [] },
+    );
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.push"));
+
+    expect(noticeTexts()).toContain(t("notice.vanished", wikiPath));
+    expect(service.pushOne).not.toHaveBeenCalled();
+  });
+
+  it("meldet einen Eintrag, dessen lokale Notiz beim Klick fehlt (kein meta)", async () => {
+    const wikiPath = "a/no-meta.md";
+    const service = twoPlans(planWith(wikiPath), planWith(wikiPath, { meta: new Map() }));
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.push"));
+
+    expect(noticeTexts()).toContain(t("notice.noLocal", wikiPath));
+    expect(service.pushOne).not.toHaveBeenCalled();
+  });
+
+  it("meldet auch beim Pull einen verschwundenen Eintrag", async () => {
+    const wikiPath = "a/vanished-pull.md";
+    const service = twoPlans(
+      { entries: [entry(wikiPath, "remote-changed")], meta: new Map(), collisions: [], ambiguousNames: [] },
+      { entries: [], meta: new Map(), collisions: [], ambiguousNames: [] },
+    );
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.pull"));
+
+    expect(noticeTexts()).toContain(t("notice.vanished", wikiPath));
+    expect(service.pullOne).not.toHaveBeenCalled();
+  });
+
+  // Der GUI-Smoke am 2026-08-12 hat diesen Fehler in main.ts gefunden und dort behoben:
+  // der Client stuft einen abgelehnten Schluessel als `kind: "auth"` ein, die Oberflaeche
+  // zeigte trotzdem das nackte "Forbidden". Die Status-Ansicht las die Einstufung
+  // weiterhin nicht -- derselbe Fehler, nur eine Tuer weiter.
+  it("uebersetzt einen abgelehnten API-Schluessel auch hier, statt 'Forbidden' zu zeigen", async () => {
+    const wikiPath = "a/auth.md";
+    const rejected = Object.assign(new Error("Forbidden"), { kind: "auth" });
+    const service = twoPlans(planWith(wikiPath), planWith(wikiPath), {
+      pushOne: vi.fn().mockRejectedValue(rejected),
+    });
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.push"));
+
+    expect(noticeTexts()).toContain(t("notice.authFailed"));
+    expect(noticeTexts()).not.toContain(t("notice.error", "Forbidden"));
+  });
+});
+
+describe("WikijsStatusView — verwaister Snapshot", () => {
+  const stalePlan = (wikiPath: string): BuiltPlan => ({
+    entries: [entry(wikiPath, "stale-snapshot")],
+    meta: new Map(),
+    collisions: [],
+    ambiguousNames: [],
+  });
+
+  it("bietet fuer einen verwaisten Snapshot einen Verwerfen-Knopf", async () => {
+    const wikiPath = "a/stale.md";
+    const container = await renderPlan(stalePlan(wikiPath));
+    expect(buttonTexts(findRow(container, wikiPath))).toContain(t("view.forget"));
+  });
+
+  it("verwirft den Snapshot beim Klick und sagt es", async () => {
+    const wikiPath = "a/stale-click.md";
+    const service = {
+      buildPlan: vi.fn().mockResolvedValue(stalePlan(wikiPath)),
+      forgetSnapshot: vi.fn().mockResolvedValue({ kind: "forgotten" }),
+    } as unknown as SyncService;
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.forget"));
+
+    expect(service.forgetSnapshot).toHaveBeenCalled();
+    expect(noticeTexts()).toContain(t("notice.forgotten", wikiPath));
+  });
+
+  it("gibt einem gewoehnlichen Eintrag KEINEN Verwerfen-Knopf", async () => {
+    const wikiPath = "a/normal.md";
+    const container = await renderPlan({
+      entries: [entry(wikiPath, "update")],
+      meta: new Map([[wikiPath, meta()]]),
+      collisions: [],
+      ambiguousNames: [],
+    });
+    expect(buttonTexts(findRow(container, wikiPath))).not.toContain(t("view.forget"));
+  });
+});
+
+describe("WikijsStatusView — Ausgang aus 'occupied'", () => {
+  const occupiedPlan = (wikiPath: string): BuiltPlan => ({
+    entries: [entry(wikiPath, "occupied")],
+    meta: new Map([[wikiPath, meta()]]),
+    collisions: [],
+    ambiguousNames: [],
+  });
+
+  it("bietet fuer einen belegten Slug einen Uebernehmen-Knopf", async () => {
+    const wikiPath = "a/occupied.md";
+    const container = await renderPlan(occupiedPlan(wikiPath));
+    expect(buttonTexts(findRow(container, wikiPath))).toContain(t("view.adopt"));
+  });
+
+  it("meldet die gelungene Uebernahme", async () => {
+    const wikiPath = "a/adopt-ok.md";
+    const service = {
+      buildPlan: vi.fn().mockResolvedValue(occupiedPlan(wikiPath)),
+      adoptOccupied: vi.fn().mockResolvedValue({ kind: "adopted" }),
+    } as unknown as SyncService;
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.adopt"));
+
+    expect(noticeTexts()).toContain(t("notice.adopted", wikiPath));
+  });
+
+  // Der Fall, der dem Nutzer etwas sagen MUSS: die Seite drueben ist nicht unsere.
+  // Ohne Meldung sieht er nur einen Knopf, der nichts tut.
+  it("sagt es, wenn der Wiki-Inhalt abweicht und deshalb nichts uebernommen wurde", async () => {
+    const wikiPath = "a/adopt-differs.md";
+    const service = {
+      buildPlan: vi.fn().mockResolvedValue(occupiedPlan(wikiPath)),
+      adoptOccupied: vi.fn().mockResolvedValue({ kind: "blocked", reason: "content-differs" }),
+    } as unknown as SyncService;
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.adopt"));
+
+    expect(noticeTexts()).toContain(t("notice.contentDiffers", wikiPath));
+  });
+
+  it("gibt einem gewoehnlichen Eintrag KEINEN Uebernehmen-Knopf", async () => {
+    const wikiPath = "a/plain.md";
+    const container = await renderPlan({
+      entries: [entry(wikiPath, "update")],
+      meta: new Map([[wikiPath, meta()]]),
+      collisions: [],
+      ambiguousNames: [],
+    });
+    expect(buttonTexts(findRow(container, wikiPath))).not.toContain(t("view.adopt"));
+  });
+});
+
+// Minor-Befund aus der Gesamtreview, hier mit erledigt: bei einer blockierten Zeile
+// ersetzte der Kollisionshinweis die Zustandsbeschriftung, statt sie zu ergaenzen —
+// der Nutzer sah, DASS blockiert ist, aber nicht mehr, was ohne die Kollision passiert waere.
+describe("WikijsStatusView — Kollisionshinweis verdeckt den Zustand nicht", () => {
+  it("zeigt Zustand und Kollision nebeneinander", async () => {
+    const wikiPath = "a/both.md";
+    const container = await renderPlan({
+      entries: [entry(wikiPath, "create")],
+      meta: new Map([[wikiPath, meta()]]),
+      collisions: [{ wikiPath, vaultPaths: ["A.md", "a.md"] }],
+      ambiguousNames: [],
+    });
+    const desc = String(findRow(container, wikiPath).descValue);
+    expect(desc).toContain(t("status.collision"));
+    expect(desc).toContain(t("status.create"));
+  });
+});

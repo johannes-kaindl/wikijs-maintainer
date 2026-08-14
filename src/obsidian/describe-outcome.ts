@@ -3,7 +3,7 @@
 // Sache der Aufrufer (main.ts / status-view.ts), sonst waere dieses Modul an Obsidian
 // gebunden, ohne es zu brauchen.
 import { t } from "../vendor/kit/i18n";
-import type { PullOutcome, PushOutcome } from "./sync-service";
+import type { AdoptOutcome, PullOutcome, PushOutcome } from "./sync-service";
 
 /** Eigene Methode, weil sie sowohl von den Commands (main.ts) als auch vom Push-Knopf
  *  der Status-Ansicht (status-view.ts) gebraucht wird (Important-Befund „Push/Pull in
@@ -31,7 +31,31 @@ function describeBlocked(outcome: Extract<PushOutcome, { kind: "blocked" }>, wik
   // s. Minor-Befund „blocked/occupied erzeugt falsche Meldungen").
   if (outcome.reason === "no-local") return t("notice.noLocal", wikiPath);
   if (outcome.reason === "remote-deleted") return t("notice.remoteDeleted", wikiPath);
-  return t("notice.occupied", wikiPath); // outcome.reason === "occupied"
+  // Kein Fall fuer "occupied": der Entry behauptet einen Update-Zustand, ohne die Daten
+  // dafuer mitzubringen. Bis 2026-08-14 fiel er in die Slug-Kollisions-Meldung und
+  // schickte den Nutzer damit auf die Suche nach einer Seite, die es nicht gibt.
+  if (outcome.reason === "incomplete") return t("notice.incomplete", wikiPath);
+  if (outcome.reason === "occupied") return t("notice.occupied", wikiPath);
+  return assertNever(outcome.reason);
+}
+
+/** Ein neuer `reason` ohne eigenen Zweig oben bricht hier den Typecheck, statt still
+ *  in der zuletzt genannten Meldung zu landen. Die handgepflegte Liste im
+ *  Erschoepfungs-Test kann das nicht leisten — sie behauptete es, und genau darueber
+ *  kam `incomplete` als "Slug belegt" beim Nutzer an. */
+function assertNever(value: never): never {
+  throw new Error(`unbehandelter Blockierungsgrund: ${String(value)}`);
+}
+
+/** Wie describeOutcome fuer die Uebernahme einer belegten Seite. Auch hier ohne
+ *  "sonst"-Fallback: jeder Grund bekommt seinen eigenen Satz, ein neuer bricht den
+ *  Typecheck (s. assertNever unten). */
+export function describeAdopt(outcome: AdoptOutcome, wikiPath: string): string {
+  if (outcome.kind === "adopted") return t("notice.adopted", wikiPath);
+  if (outcome.reason === "content-differs") return t("notice.contentDiffers", wikiPath);
+  if (outcome.reason === "not-occupied") return t("notice.notOccupied", wikiPath);
+  if (outcome.reason === "incomplete") return t("notice.incomplete", wikiPath);
+  return assertNever(outcome.reason);
 }
 
 export function describePullOutcome(outcome: PullOutcome, wikiPath: string): string {

@@ -22,6 +22,15 @@ die 194 grüne Unit-Tests nicht sehen konnten — alle drei behoben:
    Oberfläche las die Einstufung nie und zeigte das nackte Wort „Forbidden".
    Eine Klassifikation, die in keiner Meldung ankommt, ist keine.
 
+**Wartungsrunde 0.1.2 (2026-08-14).** Bewusste Entscheidung gegen V2: geschlossen wurde
+die Fehlerklasse, die der erste echte Lauf schon dreimal getroffen hatte — das Plugin tut
+das Richtige und sagt es niemandem. Drei stille Abbrüche in der Status-Ansicht melden sich;
+die Ansicht liest jetzt (wie die Commands seit dem 12.8.) die Fehlereinstufung des Clients;
+`occupied` und `stale-snapshot` sind keine Sackgassen mehr; Blockierungsgründe sind
+typmäßig erschöpfend (`assertNever`) statt in der zuletzt genannten Meldung zu landen —
+genau dieser Weg hatte einen falsch etikettierten Grund erzeugt. 235 Tests (vorher 225).
+Der Grund für den Zuschnitt steht in `docs/OPEN-POINTS.md` § „Erledigt in 0.1.2".
+
 Bedienung und Grenzen: `README.md`; Prüfliste gegen echtes Obsidian + echte
 Instanz: `docs/SMOKE.md` (sieben Punkte automatisch, der Rest Handarbeit);
 CHANGELOG-Abschnitt `[0.1.0]`.

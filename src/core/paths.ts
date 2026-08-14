@@ -33,7 +33,15 @@ export function vaultPathToWikiPath(vaultPath: string, syncRoot: string): string
   const root = stripTrailingSlash(syncRoot);
   const prefix = root === "" ? "" : `${root}/`;
   if (prefix !== "" && !vaultPath.startsWith(prefix)) return null;
-  const rest = vaultPath.slice(prefix.length).replace(/\.md$/i, "");
+  // Nur `.md` traegt hier eine Endung, die verschwinden soll. Bei jeder anderen Datei
+  // faellt die Endung ebenfalls — sonst zieht `slugifySegment` sie punktlos in den Slug
+  // (`Not-A-Page.canvas` → `not-a-pagecanvas`). Die Unterscheidung ist noetig, weil ein
+  // Punkt im Notiznamen legitim ist: bei `.md` darf NUR `.md` fallen, sonst wuerde aus
+  // `Node.js Grundlagen.md` der Pfad `node`.
+  const withoutRoot = vaultPath.slice(prefix.length);
+  const rest = /\.md$/i.test(withoutRoot)
+    ? withoutRoot.replace(/\.md$/i, "")
+    : withoutRoot.replace(/\.[^./]+$/, "");
   if (rest === "") return null;
   return rest.split("/").map(slugifySegment).filter((s) => s !== "").join("/");
 }
