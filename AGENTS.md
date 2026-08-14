@@ -6,11 +6,12 @@ Obsidian-Plugin, das einen Ordner des Vaults per **GraphQL** mit einer
 
 ## Status
 
-**0.1.1 im Community Store gelistet (2026-08-12)** — alle
+**0.1.2 im Community Store, Review bestanden (2026-08-14)** — alle
 17 Plan-Tasks umgesetzt: Sync-Kern (`sync-plan`/`snapshot`/`transform`/`links`/
 `paths`/`diff`), GraphQL-Client gegen das gemessene Schema (`docs/LAB.md`), die
 vier Commands, Status-Ansicht, Konflikt- und Entfernen-Dialog, i18n DE/EN.
-201 Tests, Gate grün, **GUI-Smoke 7/7** (`npm run smoke:gui`, Gegenprobe belegt).
+235 Tests, Gate grün, **GUI-Smoke 7/7** (`npm run smoke:gui`, Gegenprobe belegt;
+zuletzt am 2026-08-14 gegen den 0.1.2-Build gefahren).
 
 Der erste Lauf gegen ein echtes Obsidian und die echte Instanz fand drei Fehler,
 die 194 grüne Unit-Tests nicht sehen konnten — alle drei behoben:
@@ -32,10 +33,11 @@ genau dieser Weg hatte einen falsch etikettierten Grund erzeugt. 235 Tests (vorh
 Der Grund für den Zuschnitt steht in `docs/OPEN-POINTS.md` § „Erledigt in 0.1.2".
 
 Bedienung und Grenzen: `README.md`; Prüfliste gegen echtes Obsidian + echte
-Instanz: `docs/SMOKE.md` (sieben Punkte automatisch, der Rest Handarbeit);
+Instanz: `docs/SMOKE.md` (sieben Punkte automatisch, der Rest Handarbeit — die Punkte
+12–15 für die 0.1.2-Wege sind noch nie gelaufen);
 CHANGELOG-Abschnitt `[0.1.0]`.
-Releases: **0.1.1** auf Forgejo (Quelle) und GitHub (Mirror), beide öffentlich,
-Assets und Build-Attestation vorhanden. Im Community Store gelistet seit 2026-08-12:
+Releases: **0.1.2** (zuvor 0.1.1) auf Forgejo (Quelle) und GitHub (Mirror), beide
+öffentlich, Assets vorhanden. Im Community Store gelistet seit 2026-08-12:
 `community.obsidian.md/plugins/wikijs-maintainer` — Review beim ersten Anlauf
 bestanden, ohne Warnungen. Der lokale Vorlauf war `npm run lint` (das ist
 derselbe `eslint-plugin-obsidianmd`, den der Store fährt), zusätzlich einmal
@@ -44,7 +46,9 @@ gegen dessen `all`-Konfiguration statt nur `recommended`.
 **Für jede weitere Version gilt:** ein neues GitHub-Release wird erfasst, aber
 der Review **läuft nicht von selbst an** — er muss im Developer Dashboard als
 Rescan angestoßen werden. Fällt er durch, verschwindet das Plugin binnen 24 h
-aus der Suche, nicht nur die Version.
+aus der Suche, nicht nur die Version. Für 0.1.2 am 2026-08-14 durchgeführt:
+grün, Höchstwertung. Der lokale Vorlauf ist unverändert `npm run lint` — das
+ist derselbe `eslint-plugin-obsidianmd`, den der Store fährt.
 
 **0.1.0 gibt es nicht als öffentliches Release:** die Historie wurde vor dem
 Öffentlichmachen neu aufgesetzt (der Vorgänger nannte an mehreren Stellen die
