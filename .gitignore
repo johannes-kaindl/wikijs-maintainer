@@ -3,3 +3,4 @@ main.js
 coverage/
 .lab.mjs
 .gui-smoke.mjs
+.shots.mjs

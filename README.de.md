@@ -11,6 +11,8 @@ mit ihr abgleicht.
 [![Release](https://img.shields.io/gitea/v/release/jkaindl/wikijs-maintainer?gitea_url=https%3A%2F%2Fgit.jkaindl.de&label=release)](https://git.jkaindl.de/jkaindl/wikijs-maintainer/releases)
 ![Platform](https://img.shields.io/badge/platform-Obsidian-lightgrey)
 
+<p align="center"><img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/overview.png" width="820" alt="Die Sync-Status-Ansicht mit Zeilen in den Zuständen Neu, Lokal geändert, Konflikt und Belegt, darüber eine Slug-Kollisionswarnung und ein Hinweis auf einen mehrdeutigen Notiznamen"></p>
+
 ## Features
 
 - **Veröffentlichen durch Verschieben.** Notizen in einem Ordner deines Vaults
@@ -71,6 +73,8 @@ Im Einstellungs-Tab des Plugins eintragen:
   Sie muss in deiner Instanz **installiert** sein, sonst lehnt Wiki.js das Anlegen ab.
 - **Zeitlimit** — Sekunden pro Anfrage (5–120, Standard 30).
 
+<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/settings.png" width="820" alt="Der Einstellungs-Tab des Plugins: Wiki-URL, API-Schlüssel, Sync-Ordner, Wiki-Sprache und Zeitlimit">
+
 ## Verwendung
 
 Vier Befehle, alle über die Befehlspalette:
@@ -93,6 +97,9 @@ Vier Befehle, alle über die Befehlspalette:
   zurückgesetzt wurde — öffnet sich der **Konflikt-Dialog** mit einem Zeilen-Diff.
   Du wählst „Lokal behalten" (überschreiben), „Wiki behalten" (Push abbrechen, das
   Wiki bleibt unberührt — es wird dabei **nichts** geholt) oder „Abbrechen".
+
+<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/conflict-modal.png" width="820" alt="Der Konflikt-Dialog: ein Zeilen-Diff zwischen Wiki- und lokaler Fassung, mit den Knöpfen Lokal behalten, Wiki behalten und Abbrechen">
+
 - **Slug-Kollisionen** sperren den Push für beide beteiligten Notizen, bis eine
   umbenannt ist.
 - **Mehrdeutige Notiznamen** sperren nichts: die Seiten werden gepusht, nur bleibt
@@ -100,6 +107,9 @@ Vier Befehle, alle über die Befehlspalette:
 - **Eine Notiz aus dem Sync-Ordner zu ziehen** löscht die Wiki-Seite nicht von selbst.
   Der Sammel-Push fragt und schlägt **Depublizieren** vor; Esc bedeutet immer
   „behalten" — nie depublizieren oder löschen.
+
+<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/removal-modal.png" width="820" alt="Der Entfernen-Dialog nach einem Sammel-Push: Depublizieren, Löschen und Behalten, mit Depublizieren als hervorgehobener empfohlener Aktion">
+
 - **Die Markdown-Umwandlung ist einweg.** Das Plugin bewahrt deshalb den Rohtext und
   die gepushte Fassung als getrennte Snapshots, damit ein späterer Merge beide hat.
 
@@ -119,7 +129,7 @@ Ausführlich: [`docs/OPEN-POINTS.md`](docs/OPEN-POINTS.md).
 ## Dokumentation
 
 - [`docs/SMOKE.md`](docs/SMOKE.md) — die Prüfliste, gegen die das Plugin verifiziert
-  ist; sieben Punkte davon automatisiert (`npm run smoke:gui`)
+  ist; elf Punkte davon automatisiert (`npm run smoke:gui`)
 - [`docs/LAB.md`](docs/LAB.md) — das GraphQL-Schema, **gegen eine laufende Instanz
   gemessen**, samt der zwei Stellen, an denen das Verhalten von der Deklaration abweicht
 - [`AGENTS.md`](AGENTS.md) — Architektur und die Entscheidungen dahinter

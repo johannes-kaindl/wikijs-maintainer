@@ -10,6 +10,8 @@ Obsidian plugin that publishes and syncs notes from one folder of your vault to 
 [![Release](https://img.shields.io/gitea/v/release/jkaindl/wikijs-maintainer?gitea_url=https%3A%2F%2Fgit.jkaindl.de&label=release)](https://git.jkaindl.de/jkaindl/wikijs-maintainer/releases)
 ![Platform](https://img.shields.io/badge/platform-Obsidian-lightgrey)
 
+<p align="center"><img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/overview.png" width="820" alt="The sync status view listing pages as New, Changed locally, Conflict and Occupied, with a slug-collision warning and an ambiguous-note-name hint above the list"></p>
+
 ## Features
 
 - **Publish by moving.** Notes in one folder of your vault (default `_published`)
@@ -75,6 +77,8 @@ Open the plugin's settings tab and fill in:
   (default `de`).
 - **Request timeout** — per-request timeout in seconds (5–120, default 30).
 
+<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/settings.png" width="820" alt="The plugin's settings tab: Wiki URL, API key, sync folder, wiki locale and request timeout">
+
 ## Usage
 
 Four commands, all from the command palette:
@@ -107,6 +111,9 @@ Four commands, all from the command palette:
   leave the wiki page untouched — this does **not** pull; see the note under
   "Limits of this MVP") or "Cancel" (leave the wiki untouched, same effect
   as "Keep remote").
+
+<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/conflict-modal.png" width="820" alt="The conflict dialog: a line diff between the wiki version and the local version, with Keep local, Keep remote and Cancel buttons">
+
 - **Slug collisions.** Two local notes that map to the same wiki path block
   each other's push entirely; the status view shows the collision and both
   vault paths until you rename one file.
@@ -119,6 +126,9 @@ Four commands, all from the command palette:
   itself. A collect push asks what to do, defaulting to **unpublish**
   (reversible; the page's history stays intact). Pressing Esc or closing the
   dialog always means **keep** — never unpublish or delete by accident.
+
+<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/removal-modal.png" width="820" alt="The removal dialog after a collect push: Unpublish, Delete and Keep, with Unpublish highlighted as the recommended action">
+
 - **Markdown conversion is one-way.** Wikilinks become wiki links, callouts
   become Wiki.js blockquote classes (`{.is-info}` / `.is-success` /
   `.is-warning` / `.is-danger`). The transformed text is not translated back;
@@ -169,7 +179,7 @@ Four commands, all from the command palette:
 
 ## Documentation
 
-- [`docs/SMOKE.md`](docs/SMOKE.md) — the checklist this plugin is verified against, seven
+- [`docs/SMOKE.md`](docs/SMOKE.md) — the checklist this plugin is verified against, eleven
   points of it automated (`npm run smoke:gui`)
 - [`docs/LAB.md`](docs/LAB.md) — the GraphQL schema **as measured against a running
   instance**, including the two places where it deviates from what the schema declares
