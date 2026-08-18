@@ -173,10 +173,6 @@ Four commands, all from the command palette:
   a snapshot is the basis of every later drift check, so removing one is
   always your call.
 
-## Requirements
-
-- A Wiki.js 2.x instance and an API key with write access to pages.
-
 ## Documentation
 
 - [`docs/SMOKE.md`](docs/SMOKE.md) — the checklist this plugin is verified against, eleven
