@@ -10,8 +10,11 @@ Obsidian-Plugin, das einen Ordner des Vaults per **GraphQL** mit einer
 17 Plan-Tasks umgesetzt: Sync-Kern (`sync-plan`/`snapshot`/`transform`/`links`/
 `paths`/`diff`), GraphQL-Client gegen das gemessene Schema (`docs/LAB.md`), die
 vier Commands, Status-Ansicht, Konflikt- und Entfernen-Dialog, i18n DE/EN.
-235 Tests, Gate grün, **GUI-Smoke 7/7** (`npm run smoke:gui`, Gegenprobe belegt;
-zuletzt am 2026-08-14 gegen den 0.1.2-Build gefahren).
+235 Tests, Gate grün, **GUI-Smoke 11/11** (`npm run smoke:gui`, Gegenprobe belegt;
+zuletzt am 2026-08-18 gefahren). Die vier Sackgassen-Ausgänge (SMOKE-Punkte
+12–15, s. u.) sind seit 2026-08-18 automatisiert und laufen mit; die
+CDP-Brücke des Treibers importiert seither die zentrale Dach-Fassung
+(`tools/obsidian-cdp/`) statt sie inline zu tragen.
 
 Der erste Lauf gegen ein echtes Obsidian und die echte Instanz fand drei Fehler,
 die 194 grüne Unit-Tests nicht sehen konnten — alle drei behoben:
@@ -33,8 +36,9 @@ genau dieser Weg hatte einen falsch etikettierten Grund erzeugt. 235 Tests (vorh
 Der Grund für den Zuschnitt steht in `docs/OPEN-POINTS.md` § „Erledigt in 0.1.2".
 
 Bedienung und Grenzen: `README.md`; Prüfliste gegen echtes Obsidian + echte
-Instanz: `docs/SMOKE.md` (sieben Punkte automatisch, der Rest Handarbeit — die Punkte
-12–15 für die 0.1.2-Wege sind noch nie gelaufen);
+Instanz: `docs/SMOKE.md` (elf Punkte automatisch, seit 2026-08-18 auch die
+0.1.2-Sackgassen-Ausgänge 12–15 — der Rest bleibt Handarbeit, weil er an
+visueller Beurteilung hängt);
 CHANGELOG-Abschnitt `[0.1.0]`.
 Releases: **0.1.2** (zuvor 0.1.1) auf Forgejo (Quelle) und GitHub (Mirror), beide
 öffentlich, Assets vorhanden. Im Community Store gelistet seit 2026-08-12:

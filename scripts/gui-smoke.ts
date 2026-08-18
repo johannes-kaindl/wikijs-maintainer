@@ -119,6 +119,21 @@ class Wiki {
     return data.pages.single?.content ?? "";
   }
 
+  /** Ändert eine Seite DIREKT im Wiki, am Plugin vorbei — simuliert eine fremde
+   *  Bearbeitung. Braucht Punkt 13 (SMOKE.md): "Belegter Slug, fremde Seite" muss
+   *  vom Plugin ABGEWIESEN werden, weil `adoptOccupied` Zeichen für Zeichen
+   *  vergleicht — dafür muss der Wiki-Inhalt zuerst wirklich abweichen. */
+  async setForeignContent(id: number, title: string, content: string): Promise<void> {
+    await this.gql(
+      `mutation($id: Int!, $content: String!, $description: String!, $tags: [String]!, $title: String!) {
+        pages { update(id: $id, content: $content, description: $description, tags: $tags, title: $title, isPublished: true) {
+          responseResult { succeeded errorCode message }
+        } }
+      }`,
+      { id, content, description: "smoke", tags: [], title },
+    );
+  }
+
   /** Räumt jede Seite ab, die der Smoke angelegt hat — und nur die. */
   async purge(): Promise<number> {
     const mine = (await this.list()).filter((p) => p.path.startsWith(PREFIX));
@@ -467,6 +482,228 @@ async function main(): Promise<void> {
       return true;
     `);
 
+    // --- 9.–12. Sackgassen-Ausgänge (SMOKE.md Punkte 12–15) -----------------
+    // Bis 0.1.2 schrieben "occupied" und "stale-snapshot" nie ins Wiki, hatten aber
+    // auch keinen Ausgang — die Zeile blieb dauerhaft stehen. Alle vier Wege hier
+    // schreiben NIE ins Wiki (schlimmstenfalls tun sie nichts); deshalb ist der
+    // Snapshot-Ordner direkt zu manipulieren der einzige Weg, den Ausgangszustand
+    // ohne Wiki-Seiteneffekt herzustellen.
+
+    /** Snapshot-Datei zu genau einem `wikiPath` entfernen — nicht per Präfix wie im
+     *  `finally`, sonst räumt ein Check dem nächsten die Vorbedingung weg. */
+    const dropSnapshot = (wikiPath: string): string => `
+      const dir = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].manifest.dir + "/snapshots";
+      if (!(await app.vault.adapter.exists(dir))) return "kein Snapshot-Ordner";
+      const listing = await app.vault.adapter.list(dir);
+      for (const file of listing.files) {
+        if (!file.endsWith(".json")) continue;
+        try {
+          const snapshot = JSON.parse(await app.vault.adapter.read(file));
+          if (snapshot.wikiPath === ${JSON.stringify(wikiPath)}) {
+            await app.vault.adapter.remove(file);
+            return "entfernt";
+          }
+        } catch {}
+      }
+      return "Snapshot nicht gefunden";
+    `;
+
+    /** Zeile der Status-Ansicht zu einem `wikiPath` finden: erst Existenz, dann
+     *  Eigenschaft — ein Vergleich gegen eine fehlende Zeile wäre im Defektfall grün. */
+    const findRow = (wikiPath: string): string => `
+      const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
+      if (!view) return null;
+      const rows = [...view.querySelectorAll(".setting-item")];
+      const row = rows.find((r) => (r.textContent || "").includes(${JSON.stringify(wikiPath)}));
+      if (!row) return null;
+      const desc = row.querySelector(".setting-item-description");
+      const buttons = [...row.querySelectorAll("button")].map((b) => b.textContent || "");
+      return { desc: desc ? desc.textContent || "" : "", buttons };
+    `;
+
+    // --- 9. Belegter Slug, eigene Seite (SMOKE 12) --------------------------
+    const ownPath = notePath("occupied-own");
+    await cdp.evaluate(`
+      const path = ${JSON.stringify(ownPath)};
+      const old = app.vault.getAbstractFileByPath(path);
+      if (old) await app.vault.modify(old, "# Belegt eigen\\n"); else await app.vault.create(path, "# Belegt eigen\\n");
+      return true;
+    `);
+    await cdp.evaluate(runCommand(ownPath, `${PLUGIN_ID}:push-current-note`));
+    await cdp.evaluate(dropSnapshot(`${PREFIX}-occupied-own`));
+    await cdp.evaluate(refreshView);
+    const ownRow = await pollUntil<{ desc: string; buttons: string[] }>(
+      cdp,
+      findRow(`${PREFIX}-occupied-own`),
+      8000,
+    );
+    const ownAdoptButton = ownRow?.buttons.some((b) => /übernehmen/i.test(b)) ?? false;
+    let ownAdoptNotice = "";
+    if (ownAdoptButton) {
+      await cdp.evaluate(`
+        const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
+        const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-occupied-own`)}));
+        document.querySelectorAll(".notice").forEach((n) => n.remove());
+        [...row.querySelectorAll("button")].find((b) => /übernehmen/i.test(b.textContent || "")).click();
+        return true;
+      `);
+      ownAdoptNotice = (await pollUntil<string>(cdp, `const n = document.querySelector(".notice"); return n ? n.textContent : null;`, 10000)) ?? "KEINE MELDUNG";
+    }
+    await cdp.evaluate(refreshView);
+    const ownRowAfter = await cdp.evaluate<{ desc: string; buttons: string[] } | null>(findRow(`${PREFIX}-occupied-own`));
+    record(
+      "9. Belegter Slug, eigene Seite: Übernehmen räumt die Zeile ab (SMOKE 12)",
+      ownRow !== null && /belegt/i.test(ownRow.desc) && ownAdoptButton && /übernommen/i.test(ownAdoptNotice) && ownRowAfter === null,
+      ownRow === null
+        ? "Zeile nicht gefunden"
+        : !ownAdoptButton
+          ? `kein Übernehmen-Knopf (Zustand: "${ownRow.desc}")`
+          : `Meldung "${ownAdoptNotice.slice(0, 60)}" · Zeile danach ${ownRowAfter === null ? "weg" : `noch da ("${ownRowAfter.desc}")`}`,
+    );
+
+    // --- 10. Belegter Slug, fremde Seite (SMOKE 13) -------------------------
+    const foreignPath = notePath("occupied-foreign");
+    await cdp.evaluate(`
+      const path = ${JSON.stringify(foreignPath)};
+      const old = app.vault.getAbstractFileByPath(path);
+      if (old) await app.vault.modify(old, "# Belegt fremd\\n"); else await app.vault.create(path, "# Belegt fremd\\n");
+      return true;
+    `);
+    await cdp.evaluate(runCommand(foreignPath, `${PLUGIN_ID}:push-current-note`));
+    const foreignPage = await wiki.find(`${PREFIX}-occupied-foreign`);
+    if (foreignPage) await wiki.setForeignContent(foreignPage.id, foreignPage.title, "Fremd geändert, nicht vom Plugin.");
+    await cdp.evaluate(dropSnapshot(`${PREFIX}-occupied-foreign`));
+    await cdp.evaluate(refreshView);
+    const foreignRow = await pollUntil<{ desc: string; buttons: string[] }>(
+      cdp,
+      findRow(`${PREFIX}-occupied-foreign`),
+      8000,
+    );
+    const foreignAdoptButton = foreignRow?.buttons.some((b) => /übernehmen/i.test(b)) ?? false;
+    let foreignAdoptNotice = "";
+    if (foreignAdoptButton) {
+      await cdp.evaluate(`
+        const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
+        const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-occupied-foreign`)}));
+        document.querySelectorAll(".notice").forEach((n) => n.remove());
+        [...row.querySelectorAll("button")].find((b) => /übernehmen/i.test(b.textContent || "")).click();
+        return true;
+      `);
+      foreignAdoptNotice = (await pollUntil<string>(cdp, `const n = document.querySelector(".notice"); return n ? n.textContent : null;`, 10000)) ?? "KEINE MELDUNG";
+    }
+    const foreignContentAfter = foreignPage ? await wiki.content(foreignPage.id) : "";
+    await cdp.evaluate(refreshView);
+    const foreignRowAfter = await cdp.evaluate<{ desc: string; buttons: string[] } | null>(findRow(`${PREFIX}-occupied-foreign`));
+    record(
+      "10. Belegter Slug, fremde Seite: Übernehmen bleibt aus, Wiki unangetastet (SMOKE 13)",
+      foreignRow !== null &&
+        /belegt/i.test(foreignRow.desc) &&
+        foreignAdoptButton &&
+        /nicht übernommen/i.test(foreignAdoptNotice) &&
+        foreignContentAfter.includes("Fremd geändert") &&
+        foreignRowAfter !== null &&
+        /belegt/i.test(foreignRowAfter.desc),
+      foreignRow === null
+        ? "Zeile nicht gefunden"
+        : !foreignAdoptButton
+          ? `kein Übernehmen-Knopf (Zustand: "${foreignRow.desc}")`
+          : `Meldung "${foreignAdoptNotice.slice(0, 60)}" · Wiki-Inhalt danach "${foreignContentAfter.slice(0, 30)}" · Zeile danach "${foreignRowAfter?.desc ?? "weg"}"`,
+    );
+
+    // --- 11. Verwaister Snapshot (SMOKE 14) ----------------------------------
+    const stalePath = notePath("stale");
+    await cdp.evaluate(`
+      const path = ${JSON.stringify(stalePath)};
+      const old = app.vault.getAbstractFileByPath(path);
+      if (old) await app.vault.modify(old, "# Verwaist\\n"); else await app.vault.create(path, "# Verwaist\\n");
+      return true;
+    `);
+    await cdp.evaluate(runCommand(stalePath, `${PLUGIN_ID}:push-current-note`));
+    const stalePurged = await wiki.purge();
+    await cdp.evaluate(`
+      const file = app.vault.getAbstractFileByPath(${JSON.stringify(stalePath)});
+      if (file) await app.vault.delete(file);
+      return true;
+    `);
+    await cdp.evaluate(refreshView);
+    const staleRow = await pollUntil<{ desc: string; buttons: string[] }>(cdp, findRow(`${PREFIX}-stale`), 8000);
+    const staleForgetButton = staleRow?.buttons.some((b) => /verwerfen/i.test(b)) ?? false;
+    let staleForgetNotice = "";
+    if (staleForgetButton) {
+      await cdp.evaluate(`
+        const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
+        const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-stale`)}));
+        document.querySelectorAll(".notice").forEach((n) => n.remove());
+        [...row.querySelectorAll("button")].find((b) => /verwerfen/i.test(b.textContent || "")).click();
+        return true;
+      `);
+      staleForgetNotice = (await pollUntil<string>(cdp, `const n = document.querySelector(".notice"); return n ? n.textContent : null;`, 10000)) ?? "KEINE MELDUNG";
+    }
+    await cdp.evaluate(refreshView);
+    const staleRowAfter = await cdp.evaluate<{ desc: string; buttons: string[] } | null>(findRow(`${PREFIX}-stale`));
+    record(
+      "11. Verwaister Snapshot: Verwerfen räumt die Zeile ab (SMOKE 14)",
+      staleRow !== null &&
+        /veraltet/i.test(staleRow.desc) &&
+        staleForgetButton &&
+        /verworfen/i.test(staleForgetNotice) &&
+        staleRowAfter === null,
+      staleRow === null
+        ? "Zeile nicht gefunden"
+        : !staleForgetButton
+          ? `kein Verwerfen-Knopf (Zustand: "${staleRow.desc}", ${stalePurged} Wiki-Reste geräumt)`
+          : `Meldung "${staleForgetNotice.slice(0, 60)}" · Zeile danach ${staleRowAfter === null ? "weg" : `noch da ("${staleRowAfter.desc}")`}`,
+    );
+
+    // --- 12. Kein stiller Abbruch (SMOKE 15) --------------------------------
+    // Die Notiz verschwindet AM VAULT-INDEX VORBEI (adapter.remove statt
+    // vault.delete) — genau die Lücke zwischen echter externer Löschung (git
+    // checkout, Sync-Tool) und dem Zeitpunkt, zu dem Obsidians Dateibeobachter sie
+    // bemerkt. Der Push-Klick trifft deshalb auf eine Zeile, die noch die alte Welt
+    // zeigt — und darf trotzdem nicht schweigen.
+    const silentPath = notePath("silent");
+    await cdp.evaluate(`
+      const path = ${JSON.stringify(silentPath)};
+      const old = app.vault.getAbstractFileByPath(path);
+      if (old) await app.vault.modify(old, "# Still\\n"); else await app.vault.create(path, "# Still\\n");
+      return true;
+    `);
+    await cdp.evaluate(runCommand(silentPath, `${PLUGIN_ID}:push-current-note`));
+    await cdp.evaluate(`
+      const file = app.vault.getAbstractFileByPath(${JSON.stringify(silentPath)});
+      await app.vault.modify(file, "# Still\\n\\nNoch eine Zeile.\\n");
+      return true;
+    `);
+    await cdp.evaluate(refreshView);
+    const silentRow = await pollUntil<{ desc: string; buttons: string[] }>(cdp, findRow(`${PREFIX}-silent`), 8000);
+    const silentPushButton = silentRow?.buttons.some((b) => /push/i.test(b)) ?? false;
+    let silentNotice = "";
+    if (silentPushButton) {
+      // EIN Ausdruck, keine zwei Aufrufe: zwischen "Datei entfernen" und "Knopf
+      // klicken" darf kein CDP-Roundtrip liegen, sonst gewinnt fast immer der
+      // Dateibeobachter und die Rennbedingung, die dieser Punkt prüft, tritt nie ein.
+      await cdp.evaluate(`
+        const path = ${JSON.stringify(silentPath)};
+        const file = app.vault.getAbstractFileByPath(path);
+        if (file) await app.vault.adapter.remove(path);
+        const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
+        const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-silent`)}));
+        document.querySelectorAll(".notice").forEach((n) => n.remove());
+        [...row.querySelectorAll("button")].find((b) => /push/i.test(b.textContent || "")).click();
+        return true;
+      `);
+      silentNotice = (await pollUntil<string>(cdp, `const n = document.querySelector(".notice"); return n ? n.textContent : null;`, 10000)) ?? "KEINE MELDUNG";
+    }
+    record(
+      "12. Kein stiller Abbruch bei extern gelöschter Notiz (SMOKE 15)",
+      silentRow !== null && silentPushButton && silentNotice !== "KEINE MELDUNG" && silentNotice.trim() !== "",
+      silentRow === null
+        ? "Zeile nicht gefunden"
+        : !silentPushButton
+          ? `kein Push-Knopf (Zustand: "${silentRow.desc}")`
+          : `Meldung: "${silentNotice.slice(0, 90)}"`,
+    );
+
     // --- (kein Prüfpunkt für den Settings-Tab) ------------------------------
     // Bewusst nicht automatisiert: `app.setting.open()` liefert das Tab-DOM nicht
     // zuverlässig her (Obsidian 1.13 baut die Liste verzögert und ohne stabilen
@@ -474,7 +711,7 @@ async function main(): Promise<void> {
     // ersten Blick in die Einstellungen. Ein Prüfpunkt, der mehr Pflege kostet als
     // er trägt, macht die Suite unglaubwürdig. Bleibt Handarbeit (docs/SMOKE.md).
 
-    // --- 8. Keine rohen i18n-Schlüssel in der Oberfläche --------------------
+    // --- 13. Keine rohen i18n-Schlüssel in der Oberfläche -------------------
     // Nicht die Sprachumstellung wird geprüft (die änderte den Wirt), sondern die
     // reale Regressionsgefahr: `t()` fällt bei einem fehlenden Schlüssel auf den
     // Schlüsselnamen zurück, und dann steht "command.pushCurrent" in der
@@ -498,7 +735,7 @@ async function main(): Promise<void> {
       return suspicious;
     `);
     record(
-      "8. Keine rohen i18n-Schlüssel in Commands und Status-Ansicht",
+      "13. Keine rohen i18n-Schlüssel in Commands und Status-Ansicht",
       rawKeys.length === 0,
       rawKeys.length === 0 ? "alle Texte übersetzt" : rawKeys.slice(0, 3).join(", "),
     );

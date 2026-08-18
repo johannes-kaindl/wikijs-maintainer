@@ -1,6 +1,6 @@
 # SMOKE — Prüfliste gegen echtes Obsidian + echtes Wiki.js
 
-> [!tip] Sieben dieser Punkte laufen automatisch
+> [!tip] Elf dieser Punkte laufen automatisch
 > `npm run smoke:gui -- --vault <name>` fährt sie gegen ein laufendes Obsidian und
 > die konfigurierte Instanz. Voraussetzung ist der eine Handgriff, der Handarbeit
 > bleibt — Obsidian mit offenem Debug-Port starten:
@@ -19,6 +19,7 @@
 | Datum | Obsidian | Ergebnis | Gegenprobe |
 |---|---|---|---|
 | 2026-08-12 | 1.13.7 | **7/7 automatisch grün** · Hand-Punkte 1–11 durch Johannes bis Punkt 11 (Nummerierung von damals — die Punkte 12–15 kamen erst mit 0.1.2 dazu) | `unpublishPage` ohne `content`/`tags` ausgebaut → **genau Punkt 3 rot** (`isPublished=true`, das historische Symptom), übrige 6 grün |
+| 2026-08-18 | 1.13.7 | **11/11 automatisch grün** — Punkte 12–15 (Sackgassen-Ausgänge, s. u.) kamen dazu; die CDP-Brücke des Treibers wurde auf die zentrale Dach-Fassung (`tools/obsidian-cdp/`) umgestellt | Adopt-/Forget-Knöpfe in `status-view.ts` ausgebaut (`if (false && …)`) + `notice.noLocal` in `handlePush` unterdrückt → **genau die vier neuen Punkte 9–12 rot**, mit dem jeweiligen historischen Symptom im Text (`kein Übernehmen-Knopf`, `kein Verwerfen-Knopf`, `KEINE MELDUNG`); übrige 7 grün |
 
 **Was der erste Durchlauf gefunden hat** (beides behoben): `pages.update` verlangt
 `content` und `tags`, obwohl das Schema sie als optional führt — jedes
@@ -98,28 +99,32 @@ Jede Zeile: eine abhakbare Beobachtung.
       für die betroffene Seite möglich** (keine Sperre); im gepushten
       Wiki-Text bleibt `[[Name]]` als Klartext statt als Link.
 
-## Sackgassen-Ausgänge (seit 0.1.2)
+## Sackgassen-Ausgänge (seit 0.1.2, automatisiert seit 2026-08-18)
 
-Beide Wege schreiben **nie** ins Wiki — schlimmstenfalls tun sie nichts. Deshalb
-stehen sie hier und nicht im Treiber: der Zustand müsste künstlich hergestellt
-werden, und der Gewinn wäre kein neuer Schreibpfad, sondern nur die Verdrahtung
-des Knopfes.
+Beide Wege schreiben **nie** ins Wiki — schlimmstenfalls tun sie nichts. Ursprünglich
+standen sie hier, weil der Gewinn gering schien — nur die Verdrahtung eines Knopfes.
+Der Treiber baut den Zustand inzwischen selbst über den Snapshot-Ordner und eine
+direkte GraphQL-Mutation her (`Wiki.setForeignContent` in `scripts/gui-smoke.ts`);
+die vier Punkte sind jetzt Prüfpunkte 9–12 im automatischen Lauf, nicht mehr hier
+abzuhaken. Was sie prüfen, bleibt dieselbe Beschreibung:
 
-- [ ] 12. **Belegter Slug, eigene Seite.** Eine Notiz pushen, danach ihre
+- **12. Belegter Slug, eigene Seite.** Eine Notiz pushen, danach ihre
       Snapshot-Datei im Plugin-Datenordner (`snapshots/*.json`) löschen →
       Status-Ansicht zeigt „Belegt" mit dem Knopf **„Seite übernehmen"** →
-      Klick meldet die Übernahme, und nach dem Refresh ist die Zeile normal
-      (unverändert/aktualisierbar).
-- [ ] 13. **Belegter Slug, fremde Seite.** Dieselbe Lage, aber die Wiki-Seite
+      Klick meldet die Übernahme, und nach dem Refresh ist die Zeile weg
+      (Zustand „unverändert", standardmäßig ausgeblendet).
+- **13. Belegter Slug, fremde Seite.** Dieselbe Lage, aber die Wiki-Seite
       vorher **im Wiki ändern** → „Seite übernehmen" übernimmt **nichts** und
       sagt, dass der Inhalt abweicht. Die Wiki-Seite bleibt unangetastet.
-- [ ] 14. **Verwaister Snapshot.** Eine gesyncte Seite im Wiki löschen **und**
+- **14. Verwaister Snapshot.** Eine gesyncte Seite im Wiki löschen **und**
       die lokale Notiz löschen → Status-Ansicht zeigt „Veralteter Snapshot"
       mit dem Knopf **„Snapshot verwerfen"** → Klick entfernt die Datei aus
       `snapshots/`, die Zeile verschwindet.
-- [ ] 15. **Kein stiller Abbruch.** Status-Ansicht offen lassen, die Notiz
-      einer Zeile **außerhalb** von Obsidian löschen, dann in der alten
-      Ansicht auf „Push" drücken → es erscheint eine Meldung (nicht nichts).
+- **15. Kein stiller Abbruch.** Die Notiz einer Zeile wird am Vault-Index
+      vorbei entfernt (`adapter.remove`, nicht `vault.delete` — simuliert eine
+      externe Löschung, bevor Obsidians Dateibeobachter sie bemerkt), dann in
+      derselben, noch nicht neu geladenen Ansicht auf „Push" gedrückt → es
+      erscheint eine Meldung (nicht nichts).
 
 ## Sammel-Push und Fehlerfälle
 
