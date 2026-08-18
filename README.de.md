@@ -40,7 +40,8 @@ mit ihr abgleicht.
 
 ## Installation
 
-Noch nicht im Community Store (MVP, ohne Release).
+In Obsidian: **Einstellungen → Community-Plugins → Durchsuchen**, nach
+„Wiki.js Maintainer" suchen. (Gelistet seit 2026-08-12.)
 
 ### Von Hand
 
@@ -82,7 +83,11 @@ Vier Befehle, alle über die Befehlspalette:
 - **Sync-Status anzeigen** — listet jede Seite unter der Sync-Wurzel als neu,
   geändert, konfliktär, entfernt oder unverändert. Nicht jede Zeile hat einen Knopf:
   **Push** bei „Neu", „Lokal geändert" und „Konflikt"; **Pull** bei „Im Wiki geändert"
-  und „Neu im Wiki". Kollisionen und mehrdeutige Notiznamen stehen über der Liste.
+  und „Neu im Wiki". Die übrigen Zustände („Belegt", „Lokal entfernt", „Im Wiki
+  entfernt", „Veralteter Snapshot", „Unverändert") zeigen nur den Status — es gibt
+  nichts zu pushen oder zu pullen, oder (bei „Lokal entfernt") die Aktion braucht den
+  Bestätigungsdialog, den nur ein Sammel-Push zeigt. Kollisionen und mehrdeutige
+  Notiznamen stehen über der Liste (siehe unten).
 - **Aktuelle Notiz pushen** — veröffentlicht oder aktualisiert die aktive Notiz.
 - **Alle Änderungen pushen** — fährt den vollen Plan. Eine fehlgeschlagene Seite
   beendet den Lauf nicht; die Fehler stehen mit Ursache in der Abschlussmeldung.
@@ -115,14 +120,39 @@ Vier Befehle, alle über die Befehlspalette:
 
 ## Grenzen dieses MVP
 
-- **Nur Text.** Bilder und Anhänge werden nicht mitgesynct (für eine spätere Version geplant).
-- **Kein Merge.** Konflikte werden nie automatisch zusammengeführt.
-- **Kein automatischer Weg aus einem Konflikt heraus.** Solange beide Seiten geändert
-  sind, gibt es keinen Knopf, der die Wiki-Fassung in den Vault holt. „Wiki behalten"
-  bricht nur den Push ab. Wer den Wiki-Text will, kopiert ihn aus dem Diff im Dialog.
-- **Im Wiki gelöschte Seiten** lassen sich nicht aus der lokalen Notiz neu anlegen.
-- **„Belegt" hat keinen Auflösungsweg** — dann eine der beiden Seiten umbenennen.
-- **Verwaiste Snapshots werden nicht aufgeräumt.**
+- **Nur Text.** Bilder und Anhänge werden nicht mitgesynct — für eine spätere Version
+  geplant (Asset-Upload + Pfad-Umschreibung).
+- **Kein Merge.** Widersprüchliche Änderungen werden nie automatisch zusammengeführt;
+  du löst sie immer von Hand über den Konflikt-Dialog. Ein echter Drei-Wege-Merge auf
+  Basis der vorhandenen Snapshots ist für eine spätere Version geplant.
+- **Kein automatischer Weg aus einem Konflikt heraus.** Solange eine Seite sowohl
+  lokal als auch im Wiki geändert ist, gibt es keinen Knopf, der die Wiki-Fassung in
+  den Vault holt — ein Konflikt-Eintrag ist nicht pull-fähig (nur „Neu im Wiki" und
+  „Im Wiki geändert" sind es). „Wiki behalten" im Konflikt-Dialog bricht nur den Push
+  ab; es schreibt nichts. Wer den Wiki-Text will, kopiert ihn aus dem Diff im Dialog
+  oder gleicht die lokale Notiz von Hand an — sobald sie übereinstimmt, ist es kein
+  Konflikt mehr.
+- **Im Wiki entfernt.** Wird eine Seite direkt im Wiki gelöscht (z. B. über die
+  Wiki.js-Administration), während die Notiz lokal noch existiert, zeigt die
+  Status-Ansicht „Im Wiki entfernt" und bietet keinen Push dafür an. Eine gelöschte
+  Seite aus der lokalen Notiz neu anzulegen wird noch nicht unterstützt — für eine
+  spätere Version geplant. Auch der Snapshot dieser Seite räumt sich nicht von selbst
+  auf (siehe „Veralteter Snapshot" unten); am Vault ändert das nichts.
+- **„Belegt" löst sich nur auf, wenn die Seite nachweislich deine ist.** Eine Seite
+  zeigt „Belegt", wenn eine lokale Notiz und eine Wiki-Seite auf denselben Wiki-Pfad
+  fallen, ohne dass ein Snapshot beide verbindet. Die Status-Ansicht bietet **Seite
+  übernehmen** an: das holt die Wiki-Seite und schreibt — *nur* wenn ihr Inhalt
+  Zeichen für Zeichen mit deiner Notiz übereinstimmt — den fehlenden Snapshot, danach
+  synct die Seite normal weiter. Das deckt den Weg ab, auf dem dieser Zustand
+  tatsächlich entsteht: das Anlegen der Seite gelang, das Schreiben des Snapshots
+  danach schlug fehl. Weicht der Inhalt ab, ist es eine andere Seite und nichts wird
+  übernommen; das wird gemeldet, und die Korrektur bleibt manuell (Notiz umbenennen
+  oder die Seite im Wiki entfernen). Übernehmen schreibt nie ins Wiki.
+- **Veraltete Snapshots werden auf Wunsch verworfen, nicht automatisch.** Existieren
+  weder die lokale Notiz noch die Wiki-Seite, auf die ein Snapshot zeigte, bietet die
+  Status-Ansicht für diese Zeile **Snapshot verwerfen** an. Verworfen wird nichts von
+  selbst — ein Snapshot ist die Grundlage jedes späteren Drift-Checks, ihn zu
+  entfernen bleibt deine Entscheidung.
 
 Ausführlich: [`docs/OPEN-POINTS.md`](docs/OPEN-POINTS.md).
 
@@ -132,7 +162,11 @@ Ausführlich: [`docs/OPEN-POINTS.md`](docs/OPEN-POINTS.md).
   ist; elf Punkte davon automatisiert (`npm run smoke:gui`)
 - [`docs/LAB.md`](docs/LAB.md) — das GraphQL-Schema, **gegen eine laufende Instanz
   gemessen**, samt der zwei Stellen, an denen das Verhalten von der Deklaration abweicht
+- [`docs/OPEN-POINTS.md`](docs/OPEN-POINTS.md) — bekannte Grenzen und bewusst
+  zurückgestellte Befunde
 - [`AGENTS.md`](AGENTS.md) — Architektur und die Entscheidungen dahinter
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md) ·
+  [`CHANGELOG.md`](CHANGELOG.md)
 
 ## Lizenz
 
