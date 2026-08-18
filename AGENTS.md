@@ -16,6 +16,16 @@ zuletzt am 2026-08-18 gefahren). Die vier Sackgassen-Ausgänge (SMOKE-Punkte
 CDP-Brücke des Treibers importiert seither die zentrale Dach-Fassung
 (`tools/obsidian-cdp/`) statt sie inline zu tragen.
 
+**README bebildert (2026-08-18, Skill `readme-shots`):** vier Bilder
+(`docs/images/overview.png`, `settings.png`, `conflict-modal.png`,
+`removal-modal.png`) in `README.md` und `README.de.md` eingebettet — bis dahin
+trug die README nur Badges. Treiber `scripts/shots.ts` + Fixture unter
+`docs/images/fixture/`, Vertrag in `docs/images/README.md`. Zwei Funde beim
+Aufnehmen dort dokumentiert: die Status-Ansicht zeigt ungefiltert alle
+Wiki-Seiten (Bild filtert im Render auf `zz-shots`), und `settings.png` hätte
+ohne Platzhalter die echte Wiki-URL samt Anfang des echten API-Schlüssels
+gezeigt.
+
 Der erste Lauf gegen ein echtes Obsidian und die echte Instanz fand drei Fehler,
 die 194 grüne Unit-Tests nicht sehen konnten — alle drei behoben:
 1. `pages.update` verlangt `content` und `tags`, obwohl das Schema sie als
