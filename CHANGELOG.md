@@ -5,6 +5,8 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-08-18
+
 ### Changed
 - **README bebildert.** Vier Bilder (Status-Ansicht, Settings-Tab, Konflikt-
   und Entfernen-Dialog) in `README.md`/`README.de.md` — bis dahin trug die
