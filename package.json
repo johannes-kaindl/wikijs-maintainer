@@ -15,7 +15,7 @@
     "test": "node scripts/check-no-abs-paths.mjs && vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
+    "typecheck:scripts": "if test -d ../tools/obsidian-cdp; then tsc -p tsconfig.scripts.json --noEmit; else echo 'typecheck:scripts uebersprungen: ../tools/obsidian-cdp fehlt (der GUI-Smoke importiert die zentrale CDP-Bruecke aus dem Dach-Checkout; in CI/fremden Checkouts nicht vorhanden)'; fi",
     "lint": "node scripts/check-no-inline-disables.mjs && eslint src --max-warnings 0",
     "check:pure": "node scripts/check-pure.mjs && node scripts/check-no-nul-bytes.mjs",
     "gate": "npm run lint && npm run typecheck && npm run typecheck:scripts && npm test && npm run check:pure && npm run build",
