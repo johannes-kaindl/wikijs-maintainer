@@ -5,6 +5,23 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Changed
+- **README bebildert.** Vier Bilder (Status-Ansicht, Settings-Tab, Konflikt-
+  und Entfernen-Dialog) in `README.md`/`README.de.md` — bis dahin trug die
+  README nur Badges. Aufnahme-Treiber und -Vertrag in `docs/images/`.
+- **`README.de.md` inhaltlich auf 0.1.2 nachgezogen.** Die deutsche Fassung
+  war seit dem MVP eingefroren: „Noch nicht im Community Store" (ist es seit
+  2026-08-12), die Grenzen-Liste kannte weder „Seite übernehmen" noch
+  „Snapshot verwerfen". Außerdem ein doppelter „Requirements"-Abschnitt in
+  der englischen Fassung entfernt.
+- **GUI-Smoke automatisiert die vier 0.1.2-Sackgassen-Ausgänge** (Belegter
+  Slug eigen/fremd, verwaister Snapshot, kein stiller Abbruch bei extern
+  gelöschter Notiz) — 11/11 statt 7/7, Gegenprobe belegt.
+- **CDP-Brücke des GUI-Smoke importiert die zentrale Dach-Fassung**
+  (`tools/obsidian-cdp/`) statt sie inline zu tragen; behebt dabei eine
+  Fokus-Guard-Lücke (Chromium drosselt nicht-fokussierte Fenster, ohne
+  Nachschau lief das unbemerkt).
+
 ## [0.1.2] — 2026-08-14
 
 ### Added
