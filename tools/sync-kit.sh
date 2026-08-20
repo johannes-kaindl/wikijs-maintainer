@@ -14,7 +14,7 @@ stamp() { # stamp <vendored-file> <kit-relative-path>
 
 mkdir -p src/vendor/kit src/vendor/kit-obsidian tests/vendor/kit
 
-for m in settings i18n timeout frontmatter; do
+for m in settings i18n timeout frontmatter diff; do
   cp "$KIT/src/pure/$m.ts" "src/vendor/kit/$m.ts"
   stamp "src/vendor/kit/$m.ts" "src/pure/$m.ts"
   echo "vendored obsidian-kit@$VER/pure/$m.ts"
@@ -34,7 +34,7 @@ cat > src/vendor/kit/VENDOR.json <<JSON
   "source": "obsidian-kit",
   "version": "$VER",
   "sha": "$SHA",
-  "vendored": "settings.ts, i18n.ts, timeout.ts, frontmatter.ts",
+  "vendored": "settings.ts, i18n.ts, timeout.ts, frontmatter.ts, diff.ts",
   "note": "Verbatim snapshot. Never hand-edit. Re-vendor via tools/sync-kit.sh. kit-obsidian/ und tests/vendor/kit/ siehe deren VENDOR.json."
 }
 JSON
