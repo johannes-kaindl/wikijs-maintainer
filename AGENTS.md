@@ -134,8 +134,9 @@ hier reichen URL + API-Key.
 
 ## Struktur
 
-- `src/core/` — rein: `sync-plan.ts` (Zustandsmaschine), `transform.ts`, `links.ts`,
-  `paths.ts`.
+- `src/core/` — rein (7 Dateien, vollständig): `sync-plan.ts` (Zustandsmaschine),
+  `transform.ts`, `links.ts`, `paths.ts`, `page-meta.ts`, `settings-types.ts`,
+  `snapshot.ts`.
 - `src/wikijs/` — `client.ts` (GraphQL über `requestUrl` + `withTimeout`),
   `queries.ts`.
 - `src/obsidian/` — Settings-Tab, Status-View, Modals.
