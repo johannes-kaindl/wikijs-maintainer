@@ -2,7 +2,7 @@
 // dem, was jetzt im Wiki steht, und laesst den Nutzer entscheiden. Bewusst KEIN
 // Merge — der kommt in V3; hier gilt "sehen, dann entscheiden".
 import { App, Modal, Setting } from "obsidian";
-import { diffLines } from "../core/diff";
+import { diffLines } from "../vendor/kit/diff";
 import { t } from "../vendor/kit/i18n";
 
 export type ConflictChoice = "local" | "remote" | "cancel";

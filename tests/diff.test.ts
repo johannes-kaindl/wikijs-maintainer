@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applySelection, diffLines, groupHunks } from "../src/core/diff";
+import { applySelection, diffLines, groupHunks } from "../src/vendor/kit/diff";
 
 describe("diffLines", () => {
   it("markiert unveraenderte Zeilen als ctx", () => {

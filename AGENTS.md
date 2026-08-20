@@ -104,10 +104,12 @@ eigener Release-Takt, Release-Infra über Skill `plugin-release-setup`, Test-Set
 ## Kit-first-Anker
 
 Vendored aus `../obsidian-kit` (verbatim, Re-Sync über `tools/sync-kit.sh`, nie von
-Hand editieren): `settings`, `i18n`, `timeout` (pure) sowie `clock`, `confirm`,
-`folder-suggest`, `settings_walker` (obsidian) und `testing/obsidian-mock`
-(→ `tests/vendor/kit/`).
-Katalog-Übernahme mit Herkunftsstempel: `src/core/diff.ts` aus `koda-agent`.
+Hand editieren): `settings`, `i18n`, `timeout`, `frontmatter`, `diff` (pure) sowie
+`clock`, `confirm`, `folder-suggest`, `settings_walker` (obsidian) und
+`testing/obsidian-mock` (→ `tests/vendor/kit/`).
+`diff` kam am 2026-08-09 als Katalog-Übernahme aus `koda-agent` (damals
+`src/core/diff.ts`); mit Kit 0.27.0 ist die Lösung ins Kit gehoben und seit dem
+Vendoring 2026-08-20 kommt sie von dort — byte-identisch, keine Signaturänderung.
 **Bewusst nicht übernommen:** `endpoint_config` — das ist die LLM-Endpunkt-Form;
 hier reichen URL + API-Key.
 
@@ -133,7 +135,7 @@ hier reichen URL + API-Key.
 ## Struktur
 
 - `src/core/` — rein: `sync-plan.ts` (Zustandsmaschine), `transform.ts`, `links.ts`,
-  `paths.ts`, `diff.ts`.
+  `paths.ts`.
 - `src/wikijs/` — `client.ts` (GraphQL über `requestUrl` + `withTimeout`),
   `queries.ts`.
 - `src/obsidian/` — Settings-Tab, Status-View, Modals.
