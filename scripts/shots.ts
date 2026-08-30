@@ -232,7 +232,7 @@ async function settingsBild(port: number, opts: ShotOptions): Promise<{ ok: bool
     await new Promise((r) => setTimeout(r, 900));
     return true;
   `);
-  const fenster = await attachTo("settings", port);
+  const fenster = await attachTo("settings", port, REPO_NAME);
   if (!fenster) return { ok: false, msg: "settings.png — kein Einstellungen-Fenster gefunden" };
   try {
     await fenster.send("Page.bringToFront");
