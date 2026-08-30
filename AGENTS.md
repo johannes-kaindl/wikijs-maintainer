@@ -124,7 +124,10 @@ hier reichen URL + API-Key.
 - `npm run smoke:gui -- --vault <name>` — GUI-Smoke gegen ein **laufendes**
   Obsidian und die echte Instanz (CORE-TEST-02 b). Voraussetzung ist der eine
   Handgriff, der Handarbeit bleibt: Obsidian mit `--remote-debugging-port=9222`
-  neu starten. Der Treiber legt nur Seiten unter `zz-smoke-` an und räumt sie
+  neu starten — ⚠️ aber **erst prüfen, wer sonst dranhängt**
+  (`lsof -nP -iTCP:9222 -sTCP:LISTEN`): hört der Port schon, mitnutzen statt neu
+  starten, denn ein Quit zerstört den Zustand einer fremden Session, während der
+  eigene Lauf sauber grün bleibt. Der Treiber legt nur Seiten unter `zz-smoke-` an und räumt sie
   samt Snapshots wieder ab. Details und Fallen: `docs/SMOKE.md`, Kopfkommentar
   in `scripts/gui-smoke.ts`.
 - `npm run deploy` — Build ins Vault kopieren (`OBSIDIAN_PLUGIN_DIR` setzen).
