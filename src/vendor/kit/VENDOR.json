@@ -1,7 +1,8 @@
 {
   "source": "obsidian-kit",
-  "version": "0.27.0",
-  "sha": "fbb42d4",
+  "version": "0.30.0",
+  "sha": "6e571a4",
+  "code_kit_version": "0.5.0",
   "vendored": "settings.ts, i18n.ts, timeout.ts, frontmatter.ts, diff.ts",
-  "note": "Verbatim snapshot. Never hand-edit. Re-vendor via tools/sync-kit.sh. kit-obsidian/ und tests/vendor/kit/ siehe deren VENDOR.json."
+  "note": "Verbatim snapshot aus ZWEI Quellen (obsidian-kit + code-kit); welche Datei woher stammt, sagt ihr eigener Kopf. Never hand-edit. Re-vendor via tools/sync-kit.sh. kit-obsidian/ und tests/vendor/kit/ siehe deren VENDOR.json."
 }
