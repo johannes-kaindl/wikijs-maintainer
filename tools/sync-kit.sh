@@ -10,7 +10,7 @@ KIT=../obsidian-kit
 # `set -e` beendet den Lauf NACH der ersten Erfolgsmeldung, also laufen die spaeteren Bloecke
 # nicht mehr mit und VENDOR.json wird gar nicht erst geschrieben. Die eine Datei, in der man
 # den Vendor-Stand nachschlaegt, behauptet danach den alten — leise.
-CODE_KIT=../../code-kit
+CODE_KIT="${CODE_KIT_DIR:-../../libs/code-kit}"
 # CORE-META-22: gelesen wird aus einer FESTEN REF, nicht aus dem Arbeitsstand des
 # Nachbar-Repos. Ein `cp` aus dessen Worktree koppelt dieses Repo an einen fremden HEAD —
 # wer nebenan etwas ausprobiert, landet hier im Vendor, und VENDOR.json behauptet trotzdem
