@@ -85,6 +85,21 @@ describe("WikiClient", () => {
     await expect(new WikiClient(OPTS).listPages()).rejects.toMatchObject({ kind: "network" });
   });
 
+  it("bricht mit lesbarer Meldung ab, statt einen Nicht-Latin-1-Schluessel in den Header zu schicken", async () => {
+    // Header-Werte sind ByteStrings (Latin-1): ein Schluessel mit z.B. "•" (U+2022)
+    // liesse `requestUrl`/`fetch` erst beim Senden mit einem kryptischen
+    // "Cannot convert argument to a ByteString"-Fehler sterben. Der Client prueft
+    // deshalb VOR dem Request, statt die Konvertierung ueber die Klippe laufen zu
+    // lassen — requestUrl darf dafuer gar nicht erst aufgerufen werden.
+    reply({ data: { pages: { list: [] } } });
+    const client = new WikiClient({ ...OPTS, token: "•".repeat(3) });
+    await expect(client.listPages()).rejects.toMatchObject({
+      kind: "invalid",
+      message: expect.stringContaining("Latin-1"),
+    });
+    expect((requestUrl as unknown as MockFn).mock.calls.length).toBe(0);
+  });
+
   it("normalisiert einen nicht-JSON-Antwortkoerper (z.B. Proxy-Fehlerseite bei 200) zu WikiError", async () => {
     // Obsidians echtes requestUrl legt .json als lazy parsenden Getter aus. Eine
     // 502-HTML-Seite hinter Caddy bei neustartendem Container ist der Normalfall

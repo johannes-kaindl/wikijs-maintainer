@@ -5,6 +5,24 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Fixed
+- **Ein API-Schlüssel mit Zeichen außerhalb Latin-1 bricht mit lesbarer Meldung
+  ab, statt in der Header-Konvertierung zu sterben.** Header-Werte sind
+  ByteStrings — ein Schlüssel mit z. B. „•" ließ `requestUrl`/`fetch` bisher mit
+  „Cannot convert argument to a ByteString …" abstürzen. Der GraphQL-Client
+  prüft das jetzt vor jedem Request.
+
+### Changed
+- **`scripts/shots.ts` schreibt für `settings.png` keinen Nicht-ASCII-Platzhalter
+  mehr in die Vault-Einstellungen.** Bisher landete `"•".repeat(48)` dauerhaft in
+  der `data.json` des Aufnahme-Vaults — der nächste GUI-Smoke-Lauf erbte den
+  kaputten Schlüssel und brach beim ersten GraphQL-Fetch ab. Die Maskierung
+  fürs Bild passiert jetzt in der Darstellung (`type="password"` nur für die
+  Aufnahme), der gespeicherte Wert ist ein ASCII-Platzhalter.
+- **GUI-Smoke prüft den API-Schlüssel auf Latin-1-Tauglichkeit, bevor er in
+  einen Header wandert** — ein beschädigter Schlüssel im Vault meldet sich jetzt
+  als roter Prüfpunkt mit Bilanz, nicht als nackter Abbruch ohne Ergebnis.
+
 ## [0.1.3] — 2026-08-18
 
 ### Changed

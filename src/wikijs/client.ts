@@ -39,12 +39,26 @@ export interface FetchedPage {
  *  (Meldung zeigen) von "Server schweigt" (Wiederholen anbieten). */
 export class WikiError extends Error {
   constructor(
-    readonly kind: "network" | "timeout" | "auth" | "graphql",
+    readonly kind: "network" | "timeout" | "auth" | "graphql" | "invalid",
     message: string,
   ) {
     super(message);
     this.name = "WikiError";
   }
+}
+
+/** Header-Werte sind ByteStrings (Latin-1) — ein Schluessel mit z.B. "•" (U+2022)
+ *  liesse requestUrl/fetch erst BEIM SENDEN mit einem kryptischen "Cannot convert
+ *  argument to a ByteString"-Fehler sterben (gemessen 2026-09-16 im GUI-Smoke:
+ *  ein Fixture/Aufnahme-Schritt hatte genau so einen Schluessel im Vault
+ *  hinterlassen). Die Pruefung VOR dem Request macht daraus einen lesbaren
+ *  Abbruch statt eines Absturzes in der Konvertierung. Codepunkt-Schleife statt
+ *  Regex: `no-control-regex` weist einen U+0000-U+00FF-Bereich als Kontrollzeichen-Literal ab. */
+function hasNonLatin1(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    if ((s.codePointAt(i) ?? 0) > 255) return true;
+  }
+  return false;
 }
 
 /** Unterfelder von ResponseStatus sind laut docs/LAB.md NICHT gemessen — nur eine
@@ -72,6 +86,12 @@ export class WikiClient {
   }
 
   private async gql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+    if (hasNonLatin1(this.opts.token)) {
+      throw new WikiError(
+        "invalid",
+        "API-Schlüssel enthält Zeichen außerhalb Latin-1 — Header-Werte sind ByteStrings.",
+      );
+    }
     const work = requestUrl({
       url: this.endpoint,
       method: "POST",

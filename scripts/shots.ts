@@ -85,6 +85,14 @@ const THUMB_WIDTH = 380;
 const FENSTER_BREITE = 1440;
 const FENSTER_HOEHE = 960;
 
+/** Platzhalter fuer settings.png statt eines echten Schluessels. ASCII bewusst:
+ *  ein "•"-Platzhalter (wie bis 2026-09-16 verwendet) landet unveraendert in der
+ *  data.json des Aufnahme-Vaults und bricht den naechsten GraphQL-Fetch — Header-
+ *  Werte sind ByteStrings (Latin-1), "•" ist es nicht. Die eigentliche Maskierung
+ *  fuers Bild passiert zusaetzlich in der DARSTELLUNG (settingsBild setzt das
+ *  Eingabefeld auf type="password"), dieser Wert ist nur die zweite Absicherung. */
+const SETTINGS_SHOT_API_KEY = "sk-fixture-not-a-real-key-0000000000000000";
+
 /** Alle Wiki-Pfade und Vault-Notizen des Laufs liegen unter diesem Ordner — die
  *  Zusicherung an die Instanz: der Treiber fasst nichts an, was nicht ihm gehoert, und
  *  das `finally` weiss, was es abraeumen darf. Ordner statt Praefix (wie bei
@@ -252,6 +260,16 @@ async function settingsBild(port: number, opts: ShotOptions): Promise<{ ok: bool
   try {
     await fenster.send("Page.bringToFront");
     await new Promise((r) => setTimeout(r, 600));
+    // Maskierung in der DARSTELLUNG statt im Wert: das Eingabefeld des API-Schluessels
+    // wird fuer die Aufnahme auf type="password" umgestellt (Browser rendert Punkte),
+    // ohne die gespeicherte Einstellung anzufassen — der Wert bleibt der ASCII-
+    // Platzhalter aus main(), niemals der echte Schluessel.
+    await fenster.evaluate(`
+      const input = [...document.querySelectorAll(".setting-item input")]
+        .find((el) => el.value === ${JSON.stringify(SETTINGS_SHOT_API_KEY)});
+      if (input) input.type = "password";
+      return Boolean(input);
+    `);
     // NICHT die volle Containerhoehe (`.vertical-tab-content` reicht bis zum
     // Fensterende, auch wenn der Inhalt viel kuerzer ist — toter Weissraum unten).
     // Das LETZTE Kind entscheidet: seine Unterkante ist die tatsaechliche Inhaltshoehe.
@@ -553,7 +571,7 @@ async function main(): Promise<void> {
     // Aufnahme sein — kein weiterer Zustand braucht danach noch echte Zugangsdaten.
     if (!nur || nur === "settings.png") {
       await setPluginSetting(cdp, PLUGIN_ID, "baseUrl", "https://wiki.example.org");
-      await setPluginSetting(cdp, PLUGIN_ID, "apiKey", "•".repeat(48));
+      await setPluginSetting(cdp, PLUGIN_ID, "apiKey", SETTINGS_SHOT_API_KEY);
       const result = await settingsBild(port, { outDir, captureWidth: CAPTURE_WIDTH, thumbWidth: THUMB_WIDTH });
       console.log(`  ${result.ok ? "✓" : "✗"} ${result.msg}`);
       if (result.ok) ok++; else fehlend++;

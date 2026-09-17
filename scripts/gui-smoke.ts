@@ -84,6 +84,33 @@ function record(name: string, passed: boolean, detail: string): void {
   console.log(`${passed ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+/** Getrennt von main(), damit sie auch nach einem fruehen, kontrollierten Abbruch
+ *  (Praeflug-Check 0) noch eine Bilanz ausgibt — CORE-TEST-19: "nichts gemessen"
+ *  ist ein eigener Zustand und soll nicht aussehen wie ein Crash ohne Ergebnis. */
+function printSummary(): void {
+  const failed = results.filter((check) => !check.passed);
+  console.log(`\n${results.length - failed.length}/${results.length} grün`);
+  if (failed.length > 0) {
+    console.log("Rot:");
+    for (const check of failed) console.log(`  - ${check.name}: ${check.detail}`);
+    process.exitCode = 1;
+  }
+}
+
+/** Erster Zeichen-Codepunkt > 255 in `s`, oder `null` — Header-Werte sind
+ *  ByteStrings (Latin-1); ein Wert darueber laesst `fetch`/`requestUrl` nicht mit
+ *  einer fachlichen Meldung scheitern, sondern mit einem WebIDL-Konvertierungsfehler
+ *  ("Cannot convert argument to a ByteString …"), lange bevor irgendein Prüfpunkt
+ *  greift (gemessen 2026-09-16, Welle 4b: ein von `shots.ts` hinterlassener
+ *  "•"-Platzhalter im Vault). */
+function firstNonLatin1(s: string): { char: string; codePoint: number; index: number } | null {
+  for (let i = 0; i < s.length; i++) {
+    const codePoint = s.codePointAt(i) ?? 0;
+    if (codePoint > 255) return { char: s[i] ?? "", codePoint, index: i };
+  }
+  return null;
+}
+
 // --- Wiki-Seite der Verifikation --------------------------------------------
 // Der Treiber prüft die Wirkung DRÜBEN, nicht die Meldung im Plugin. Eine Notice
 // sagt nur, was das Plugin glaubt; die Instanz sagt, was geschehen ist. Genau
@@ -265,8 +292,26 @@ async function main(): Promise<void> {
     const token = await cdp.evaluate<string>(
       `return app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings.apiKey;`,
     );
-    wiki = new Wiki(plugin.baseUrl, token);
     previousApiKey = token;
+
+    // Praeflug-Check 0: bricht der Treiber hier statt in einem der folgenden Punkte,
+    // ist der Schluessel im VAULT beschaedigt (nicht der Treiber) — alle Punkte ab
+    // hier waeren sonst nicht "nichts gemessen", sondern ein nackter Absturz.
+    const headerIssue = firstNonLatin1(token);
+    record(
+      "0. API-Schlüssel ist header-tauglich (Latin-1/ByteString)",
+      headerIssue === null,
+      headerIssue === null
+        ? "keine Zeichen außerhalb Latin-1"
+        : `Zeichen U+${headerIssue.codePoint.toString(16).toUpperCase()} an Index ${headerIssue.index} — ` +
+          "Header-Werte sind ByteStrings; der im Vault gespeicherte Schlüssel ist beschädigt " +
+          "(z. B. ein Aufnahme-Platzhalter, der nie zurückgesetzt wurde). Alle folgenden Punkte übersprungen.",
+    );
+    if (headerIssue !== null) {
+      printSummary();
+      return;
+    }
+    wiki = new Wiki(plugin.baseUrl, token);
 
     const root = plugin.syncRoot ?? "_published";
     const notePath = (name: string): string => `${root}/${PREFIX}-${name}.md`;
@@ -806,13 +851,7 @@ async function main(): Promise<void> {
     cdp.close();
   }
 
-  const failed = results.filter((check) => !check.passed);
-  console.log(`\n${results.length - failed.length}/${results.length} grün`);
-  if (failed.length > 0) {
-    console.log("Rot:");
-    for (const check of failed) console.log(`  - ${check.name}: ${check.detail}`);
-    process.exitCode = 1;
-  }
+  printSummary();
 }
 
 main().catch((error: unknown) => {
