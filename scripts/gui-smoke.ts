@@ -272,8 +272,23 @@ async function main(): Promise<void> {
                syncRoot: p.settings.syncRoot, hasKey: Boolean(p.settings.apiKey) };
     `);
     if (!plugin.ok) throw new Error(`Plugin ${PLUGIN_ID} ist nicht aktiv. Erst deployen.`);
+    // Derselbe Kniff wie beim spaeteren Praeflug-Check 0 (`f292c10`): ohne Wiki-URL/
+    // API-Schluessel wirft dieser Guard bisher einen unabgefangenen Error VOR dem ersten
+    // record() — der Lauf endet als nackter Crash statt mit einer Bilanz, in der alle
+    // Punkte "nichts gemessen" (CORE-TEST-19) sind. Ob gegen ein echtes Wiki oder einen
+    // Stub gelaufen wird, bleibt offen (eigene Task) — hier wird nur der Abbruch selbst
+    // sichtbar statt stumm.
+    record(
+      "00. Wiki-URL und API-Schlüssel sind in den Plugin-Einstellungen gesetzt",
+      Boolean(plugin.baseUrl) && Boolean(plugin.hasKey),
+      plugin.baseUrl && plugin.hasKey
+        ? `Wiki ${plugin.baseUrl}`
+        : `baseUrl: ${plugin.baseUrl ? "gesetzt" : "fehlt"} · apiKey: ${plugin.hasKey ? "gesetzt" : "fehlt"} — ` +
+          "alle folgenden Punkte übersprungen.",
+    );
     if (!plugin.baseUrl || !plugin.hasKey) {
-      throw new Error("Wiki-URL oder API-Schlüssel fehlen in den Plugin-Einstellungen.");
+      printSummary();
+      return;
     }
     // Das Plugin neu laden, statt auf den Zufall zu setzen: Obsidian haelt den zuvor
     // geladenen `main.js` im Speicher, ein frisches `npm run deploy` erreicht den
