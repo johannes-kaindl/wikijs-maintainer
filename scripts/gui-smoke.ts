@@ -247,6 +247,35 @@ async function main(): Promise<void> {
   let previousApiKey: string | null = null;
   let wiki: Wiki | null = null;
 
+  // Ein SIGINT mitten im Lauf ueberspringt das `finally` unten NICHT im try/catch-Sinn,
+  // sondern beendet den Node-Prozess sofort — Punkt 6 verstellt `settings.apiKey` bewusst auf
+  // einen ungueltigen Wert (um die Authentifizierungs-Meldung zu erzwingen) und schreibt ihn
+  // zwar schon INLINE zurueck, aber zwischen dem Verstellen und dieser Zeile bleibt ein
+  // Zeitfenster, in dem ein Abbruch den echten Wiki.js-Schluessel dauerhaft durch den
+  // ungueltigen Test-String ersetzt — das Plugin liesse sich dann bis zur manuellen
+  // Reparatur nicht mehr authentifizieren. `previousApiKey` ist zum Zeitpunkt des Signals der
+  // jeweils aktuelle Wert (per closure, kein Snapshot).
+  let signalCleanupRunning = false;
+  const onAbortSignal = (signal: NodeJS.Signals): void => {
+    if (signalCleanupRunning) return;
+    signalCleanupRunning = true;
+    void (async () => {
+      console.log(`\n\nAbbruch durch ${signal} — raeume Vault-Zustand auf...`);
+      if (previousApiKey !== null) {
+        await cdp.evaluate(`
+          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+          p.settings.apiKey = ${JSON.stringify(previousApiKey)};
+          await p.saveSettings();
+          return true;
+        `).catch(() => { console.log("  ! apiKey konnte nicht zurueckgeschrieben werden — von Hand pruefen"); });
+      }
+      cdp.close();
+      process.exit(130);
+    })();
+  };
+  process.on("SIGINT", onAbortSignal);
+  process.on("SIGTERM", onAbortSignal);
+
   try {
     // Ohne Fokus drosselt Chromium den Renderer — der DOM bleibt leer, während die
     // App-API korrekten Zustand meldet. `requireVisible` holt das Fenster selbst nach
@@ -306,6 +335,18 @@ async function main(): Promise<void> {
     // Der Schlüssel bleibt im Node-Prozess und wird nie ausgegeben.
     const token = await cdp.evaluate<string>(
       `return app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings.apiKey;`,
+    );
+    // Ein liegen gebliebener Test-Schluessel aus einem VOR diesem Handler abgebrochenen
+    // Vorlauf (SIGKILL/Absturz) ist NICHT reparierbar — der echte Schluessel wurde bereits
+    // ueberschrieben und ist nirgends mehr gespeichert. Der Punkt kann ihn deshalb nur laut
+    // melden, nicht wiederherstellen, damit das als Plugin-Bug missverstandene
+    // Authentifizierungsproblem nicht in die falsche Richtung gesucht wird.
+    record(
+      "0. apiKey trägt keinen liegen gebliebenen Test-Wert aus einem abgebrochenen Vorlauf",
+      token !== "ungueltig-fuer-den-smoke",
+      token === "ungueltig-fuer-den-smoke"
+        ? "apiKey ist der Smoke-Testwert — der echte Schlüssel ist verloren, von Hand neu setzen"
+        : "unauffällig",
     );
     previousApiKey = token;
 
@@ -864,6 +905,10 @@ async function main(): Promise<void> {
       }
     }
     cdp.close();
+    // Abmelden, sonst haengt ein SPAETES Signal (nach normalem Abschluss, cdp schon zu) den
+    // Prozess in onAbortSignal an einer toten Verbindung auf.
+    process.off("SIGINT", onAbortSignal);
+    process.off("SIGTERM", onAbortSignal);
   }
 
   printSummary();
