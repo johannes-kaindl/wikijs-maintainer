@@ -6,12 +6,12 @@ Obsidian-Plugin, das Notizen aus **einem** Ordner deines Vaults über die
 GraphQL-API in eine [Wiki.js](https://js.wiki/)-2.x-Instanz veröffentlicht und
 mit ihr abgleicht.
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-[![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-DOCS)
-[![Release](https://img.shields.io/gitea/v/release/jkaindl/wikijs-maintainer?gitea_url=https%3A%2F%2Fgit.jkaindl.de&label=release)](https://git.jkaindl.de/jkaindl/wikijs-maintainer/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSE)
+[![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSE-DOCS)
+[![Release](https://img.shields.io/github/v/release/johannes-kaindl/wikijs-maintainer?label=release)](https://github.com/johannes-kaindl/wikijs-maintainer/releases)
 ![Platform](https://img.shields.io/badge/platform-Obsidian-lightgrey)
 
-<p align="center"><img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/overview.png" width="820" alt="Die Sync-Status-Ansicht mit Zeilen in den Zuständen Neu, Lokal geändert, Konflikt und Belegt, darüber eine Slug-Kollisionswarnung und ein Hinweis auf einen mehrdeutigen Notiznamen"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/johannes-kaindl/wikijs-maintainer/main/docs/images/overview.png" width="820" alt="Die Sync-Status-Ansicht mit Zeilen in den Zuständen Neu, Lokal geändert, Konflikt und Belegt, darüber eine Slug-Kollisionswarnung und ein Hinweis auf einen mehrdeutigen Notiznamen"></p>
 
 ## Features
 
@@ -74,7 +74,7 @@ Im Einstellungs-Tab des Plugins eintragen:
   Sie muss in deiner Instanz **installiert** sein, sonst lehnt Wiki.js das Anlegen ab.
 - **Zeitlimit** — Sekunden pro Anfrage (5–120, Standard 30).
 
-<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/settings.png" width="820" alt="Der Einstellungs-Tab des Plugins: Wiki-URL, API-Schlüssel, Sync-Ordner, Wiki-Sprache und Zeitlimit">
+<img src="https://raw.githubusercontent.com/johannes-kaindl/wikijs-maintainer/main/docs/images/settings.png" width="820" alt="Der Einstellungs-Tab des Plugins: Wiki-URL, API-Schlüssel, Sync-Ordner, Wiki-Sprache und Zeitlimit">
 
 ## Verwendung
 
@@ -103,7 +103,7 @@ Vier Befehle, alle über die Befehlspalette:
   Du wählst „Lokal behalten" (überschreiben), „Wiki behalten" (Push abbrechen, das
   Wiki bleibt unberührt — es wird dabei **nichts** geholt) oder „Abbrechen".
 
-<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/conflict-modal.png" width="820" alt="Der Konflikt-Dialog: ein Zeilen-Diff zwischen Wiki- und lokaler Fassung, mit den Knöpfen Lokal behalten, Wiki behalten und Abbrechen">
+<img src="https://raw.githubusercontent.com/johannes-kaindl/wikijs-maintainer/main/docs/images/conflict-modal.png" width="820" alt="Der Konflikt-Dialog: ein Zeilen-Diff zwischen Wiki- und lokaler Fassung, mit den Knöpfen Lokal behalten, Wiki behalten und Abbrechen">
 
 - **Slug-Kollisionen** sperren den Push für beide beteiligten Notizen, bis eine
   umbenannt ist.
@@ -113,7 +113,7 @@ Vier Befehle, alle über die Befehlspalette:
   Der Sammel-Push fragt und schlägt **Depublizieren** vor; Esc bedeutet immer
   „behalten" — nie depublizieren oder löschen.
 
-<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/removal-modal.png" width="820" alt="Der Entfernen-Dialog nach einem Sammel-Push: Depublizieren, Löschen und Behalten, mit Depublizieren als hervorgehobener empfohlener Aktion">
+<img src="https://raw.githubusercontent.com/johannes-kaindl/wikijs-maintainer/main/docs/images/removal-modal.png" width="820" alt="Der Entfernen-Dialog nach einem Sammel-Push: Depublizieren, Löschen und Behalten, mit Depublizieren als hervorgehobener empfohlener Aktion">
 
 - **Die Markdown-Umwandlung ist einweg.** Das Plugin bewahrt deshalb den Rohtext und
   die gepushte Fassung als getrennte Snapshots, damit ein späterer Merge beide hat.
@@ -154,22 +154,25 @@ Vier Befehle, alle über die Befehlspalette:
   selbst — ein Snapshot ist die Grundlage jedes späteren Drift-Checks, ihn zu
   entfernen bleibt deine Entscheidung.
 
-Ausführlich: [`docs/OPEN-POINTS.md`](docs/OPEN-POINTS.md).
+Ausführlich: [`docs/OPEN-POINTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/OPEN-POINTS.md).
 
 ## Dokumentation
 
-- [`docs/SMOKE.md`](docs/SMOKE.md) — die Prüfliste, gegen die das Plugin verifiziert
-  ist; elf Punkte davon automatisiert (`npm run smoke:gui`)
-- [`docs/LAB.md`](docs/LAB.md) — das GraphQL-Schema, **gegen eine laufende Instanz
-  gemessen**, samt der zwei Stellen, an denen das Verhalten von der Deklaration abweicht
-- [`docs/OPEN-POINTS.md`](docs/OPEN-POINTS.md) — bekannte Grenzen und bewusst
-  zurückgestellte Befunde
-- [`AGENTS.md`](AGENTS.md) — Architektur und die Entscheidungen dahinter
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md) ·
-  [`CHANGELOG.md`](CHANGELOG.md)
+Einstieg ist der [Doku-Index](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/README.md) (englisch):
+
+- **[Getting started](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/getting-started.md)** — von der Installation bis zur ersten veröffentlichten Seite.
+- **[Troubleshooting](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/troubleshooting.md)** — die Meldung, ihre Ursache und die Abhilfe.
+
+Für Maintainer und Mitwirkende:
+
+- [`docs/SMOKE.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/SMOKE.md) — die Prüfliste, gegen die das Plugin verifiziert ist; elf Punkte davon automatisiert (`npm run smoke:gui`)
+- [`docs/LAB.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/LAB.md) — das GraphQL-Schema, **gegen eine laufende Instanz gemessen**, samt der zwei Stellen, an denen das Verhalten von der Deklaration abweicht
+- [`docs/OPEN-POINTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/OPEN-POINTS.md) — bekannte Grenzen und bewusst zurückgestellte Befunde
+- [`AGENTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/AGENTS.md) — Architektur und die Entscheidungen dahinter
+- [`CONTRIBUTING.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/CONTRIBUTING.md) · [`SECURITY.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/SECURITY.md) · [`CHANGELOG.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/CHANGELOG.md)
 
 ## Lizenz
 
-Code: **AGPL-3.0-or-later** ([`LICENSE`](LICENSE)) — Dual-Lizenzierung möglich, siehe
-[`LICENSING.md`](LICENSING.md).
-Dokumentation und Text: **CC BY-SA 4.0** ([`LICENSE-DOCS`](LICENSE-DOCS)).
+Code: **AGPL-3.0-or-later** ([`LICENSE`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSE)) — Dual-Lizenzierung möglich, siehe
+[`LICENSING.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSING.md).
+Dokumentation und Text: **CC BY-SA 4.0** ([`LICENSE-DOCS`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSE-DOCS)).

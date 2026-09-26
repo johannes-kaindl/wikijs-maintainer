@@ -5,12 +5,12 @@
 Obsidian plugin that publishes and syncs notes from one folder of your vault to a
 [Wiki.js](https://js.wiki/) 2.x instance over its GraphQL API.
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-[![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-DOCS)
-[![Release](https://img.shields.io/gitea/v/release/jkaindl/wikijs-maintainer?gitea_url=https%3A%2F%2Fgit.jkaindl.de&label=release)](https://git.jkaindl.de/jkaindl/wikijs-maintainer/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSE)
+[![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSE-DOCS)
+[![Release](https://img.shields.io/github/v/release/johannes-kaindl/wikijs-maintainer?label=release)](https://github.com/johannes-kaindl/wikijs-maintainer/releases)
 ![Platform](https://img.shields.io/badge/platform-Obsidian-lightgrey)
 
-<p align="center"><img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/overview.png" width="820" alt="The sync status view listing pages as New, Changed locally, Conflict and Occupied, with a slug-collision warning and an ambiguous-note-name hint above the list"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/johannes-kaindl/wikijs-maintainer/main/docs/images/overview.png" width="820" alt="The sync status view listing pages as New, Changed locally, Conflict and Occupied, with a slug-collision warning and an ambiguous-note-name hint above the list"></p>
 
 ## Features
 
@@ -77,7 +77,7 @@ Open the plugin's settings tab and fill in:
   (default `de`).
 - **Request timeout** — per-request timeout in seconds (5–120, default 30).
 
-<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/settings.png" width="820" alt="The plugin's settings tab: Wiki URL, API key, sync folder, wiki locale and request timeout">
+<img src="https://raw.githubusercontent.com/johannes-kaindl/wikijs-maintainer/main/docs/images/settings.png" width="820" alt="The plugin's settings tab: Wiki URL, API key, sync folder, wiki locale and request timeout">
 
 ## Usage
 
@@ -112,7 +112,7 @@ Four commands, all from the command palette:
   "Limits of this MVP") or "Cancel" (leave the wiki untouched, same effect
   as "Keep remote").
 
-<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/conflict-modal.png" width="820" alt="The conflict dialog: a line diff between the wiki version and the local version, with Keep local, Keep remote and Cancel buttons">
+<img src="https://raw.githubusercontent.com/johannes-kaindl/wikijs-maintainer/main/docs/images/conflict-modal.png" width="820" alt="The conflict dialog: a line diff between the wiki version and the local version, with Keep local, Keep remote and Cancel buttons">
 
 - **Slug collisions.** Two local notes that map to the same wiki path block
   each other's push entirely; the status view shows the collision and both
@@ -127,7 +127,7 @@ Four commands, all from the command palette:
   (reversible; the page's history stays intact). Pressing Esc or closing the
   dialog always means **keep** — never unpublish or delete by accident.
 
-<img src="https://git.jkaindl.de/jkaindl/wikijs-maintainer/raw/branch/main/docs/images/removal-modal.png" width="820" alt="The removal dialog after a collect push: Unpublish, Delete and Keep, with Unpublish highlighted as the recommended action">
+<img src="https://raw.githubusercontent.com/johannes-kaindl/wikijs-maintainer/main/docs/images/removal-modal.png" width="820" alt="The removal dialog after a collect push: Unpublish, Delete and Keep, with Unpublish highlighted as the recommended action">
 
 - **Markdown conversion is one-way.** Wikilinks become wiki links, callouts
   become Wiki.js blockquote classes (`{.is-info}` / `.is-success` /
@@ -175,16 +175,21 @@ Four commands, all from the command palette:
 
 ## Documentation
 
-- [`docs/SMOKE.md`](docs/SMOKE.md) — the checklist this plugin is verified against, eleven
-  points of it automated (`npm run smoke:gui`)
-- [`docs/LAB.md`](docs/LAB.md) — the GraphQL schema **as measured against a running
-  instance**, including the two places where it deviates from what the schema declares
-- [`docs/OPEN-POINTS.md`](docs/OPEN-POINTS.md) — known limits and deliberately deferred findings
-- [`AGENTS.md`](AGENTS.md) — architecture and the decisions behind it
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md) · [`CHANGELOG.md`](CHANGELOG.md)
+Start at the [documentation index](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/README.md):
+
+- **[Getting started](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/getting-started.md)** — from the install to your first published page.
+- **[Troubleshooting](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/troubleshooting.md)** — the message you see, what it means, what to do.
+
+For maintainers and contributors:
+
+- [`docs/SMOKE.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/SMOKE.md) — the checklist this plugin is verified against, eleven points of it automated (`npm run smoke:gui`)
+- [`docs/LAB.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/LAB.md) — the GraphQL schema **as measured against a running instance**, including the two places where it deviates from what the schema declares
+- [`docs/OPEN-POINTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/OPEN-POINTS.md) — known limits and deliberately deferred findings
+- [`AGENTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/AGENTS.md) — architecture and the decisions behind it
+- [`CONTRIBUTING.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/CONTRIBUTING.md) · [`SECURITY.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/SECURITY.md) · [`CHANGELOG.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/CHANGELOG.md)
 
 ## License
 
-Code: **AGPL-3.0-or-later** ([`LICENSE`](LICENSE)) — dual-licensing available, see
-[`LICENSING.md`](LICENSING.md).
-Documentation and text: **CC BY-SA 4.0** ([`LICENSE-DOCS`](LICENSE-DOCS)).
+Code: **AGPL-3.0-or-later** ([`LICENSE`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSE)) — dual-licensing available, see
+[`LICENSING.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSING.md).
+Documentation and text: **CC BY-SA 4.0** ([`LICENSE-DOCS`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/LICENSE-DOCS)).
