@@ -22,6 +22,12 @@ Each entry starts with what you see — the wording is the plugin's own English 
 
 **Fix:** in Wiki.js open **Administration → Groups**, check the group's page permissions and that **API Access** is enabled, then create a new key and paste it into **API key**.
 
+## The API key field only shows dots
+
+The **API key** field masks its content on purpose, so the key is not readable in screenshots or during screen sharing. You cannot reveal it in the settings.
+
+**Fix:** to check which key is stored, create a new key in Wiki.js (**Administration → API Access**) and paste it into the field; the old one stays valid until you revoke it there. The key is kept in the plugin's `data.json` in the vault's `.obsidian/plugins/wikijs-maintainer/` folder.
+
 ## The wiki could not be reached
 
 > The wiki could not be reached: …

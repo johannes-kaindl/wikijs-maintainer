@@ -5,6 +5,9 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Changed
+- **Das Feld „API-Schlüssel" in den Einstellungen zeigt Punkte statt Klartext.** Der Schlüssel stand bisher lesbar im Feld — sichtbar bei Screenshots und Bildschirmfreigaben. Die Zeile ist eine `render`-Hatch mit `type="password"`, weil Obsidians deklarative Einstellungen keinen Passwort-Typ kennen; sie bleibt über die Einstellungs-Suche auffindbar („token", „bearer", „api key"). Gespeichert wird unverändert in `data.json`; ein Wechsel auf den Schlüsselbund ist nicht Teil dieser Änderung.
+
 ## [0.2.0] — 2026-09-26
 
 ### Added

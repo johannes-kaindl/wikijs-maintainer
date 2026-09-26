@@ -11,7 +11,7 @@
 //
 // Muster wörtlich übernommen aus `koda-agent/src/obsidian/settings.ts`.
 
-import { PluginSettingTab, type App, type SettingDefinitionItem } from "obsidian";
+import { PluginSettingTab, type App, type Setting, type SettingDefinitionItem } from "obsidian";
 import { t } from "../vendor/kit/i18n";
 import { githubHelpUrls, helpSettingDefinition } from "../vendor/kit-obsidian/help-setting";
 import { renderSettingDefinitions } from "../vendor/kit-obsidian/settings_walker";
@@ -51,7 +51,19 @@ export class WikijsSettingsTab extends PluginSettingTab {
       {
         name: t("settings.key"),
         desc: t("settings.key.desc"),
-        control: { type: "text", key: "apiKey" },
+        // Sprachfreie Suchbegriffe: ein maskiertes Feld ist nur ueber die Beschriftung zu finden,
+        // und die haengt an der UI-Sprache (Muster yijing-oracle, REGISTRY § Settings).
+        aliases: ["api key", "api-key", "apikey", "token", "bearer", "schluessel", "schlüssel"],
+        // Hatch statt Control: die deklarative API kennt keinen Passwort-Typ
+        // (`SettingTextControl` traegt nur `type: 'text'` und `placeholder`). Maskieren geht nur
+        // ueber `inputEl`. `display()` (Walker, Obsidian < 1.13) ruft dieselbe Hatch.
+        render: (setting: Setting) => {
+          setting.addText((tx) => {
+            tx.inputEl.type = "password";
+            tx.setValue(this.plugin.settings.apiKey);
+            tx.onChange((v) => this.setControlValue("apiKey", v));
+          });
+        },
       },
       {
         name: t("settings.root"),
