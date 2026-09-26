@@ -13,6 +13,7 @@
 
 import { PluginSettingTab, type App, type SettingDefinitionItem } from "obsidian";
 import { t } from "../vendor/kit/i18n";
+import { githubHelpUrls, helpSettingDefinition } from "../vendor/kit-obsidian/help-setting";
 import { renderSettingDefinitions } from "../vendor/kit-obsidian/settings_walker";
 import {
   TIMEOUT_SEC_MAX,
@@ -32,6 +33,16 @@ export class WikijsSettingsTab extends PluginSettingTab {
 
   getSettingDefinitions(): SettingDefinitionItem<keyof WikijsSettings>[] {
     return [
+      // §8 Hilfe-Zeile: erstes Element; der Walker-Fallback zeichnet sie auch fuer Obsidian < 1.13.
+      helpSettingDefinition({
+        ...githubHelpUrls("wikijs-maintainer"),
+        texts: {
+          name: t("settings.help.name"),
+          desc: t("settings.help.desc"),
+          openDocs: t("settings.help.openDocs"),
+          reportIssue: t("settings.help.reportIssue"),
+        },
+      }),
       {
         name: t("settings.url"),
         desc: t("settings.url.desc"),

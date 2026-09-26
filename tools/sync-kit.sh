@@ -16,9 +16,14 @@ CODE_KIT="${CODE_KIT_DIR:-../../libs/code-kit}"
 # wer nebenan etwas ausprobiert, landet hier im Vendor, und VENDOR.json behauptet trotzdem
 # eine Version. Default ist die package.json-Version der Quelle; ein Upgrade ist damit eine
 # BEWUSSTE Handlung (`KIT_REF=0.31.0 sh tools/sync-kit.sh`).
-VER="${KIT_REF:-$(node -p "require('$KIT/package.json').version")}"
-CODE_VER="${CODE_KIT_REF:-$(node -p "require('$CODE_KIT/package.json').version")}"
-for paar in "$KIT|$VER" "$CODE_KIT|$CODE_VER"; do
+# Feste Default-Pins (Absicht, 2026-09-26): beide Quellen stehen laengst weiter (Kit 0.43.0, code-kit 0.7.0),
+# dieses Repo bleibt fuer die uebrigen Module auf seinem Stand — ein Routinelauf soll nicht mitheben.
+VER="${KIT_REF:-0.30.0}"
+CODE_VER="${CODE_KIT_REF:-0.5.0}"
+# Zweiter Pin, ebenfalls Absicht: help-setting.ts (Hilfe-Zeile, UI-STANDARD 8) kam mit Kit 0.43.0 und
+# haengt an keinem anderen Modul. Vorlage: epub-exporter/tools/sync-kit.sh (877eb2c).
+KIT_HELP_REF="${KIT_HELP_REF:-0.43.0}"
+for paar in "$KIT|$VER" "$KIT|$KIT_HELP_REF" "$CODE_KIT|$CODE_VER"; do
   repo=${paar%%|*}; ref=${paar##*|}
   git -C "$repo" rev-parse --verify --quiet "$ref^{commit}" >/dev/null || {
     echo "FEHLER: Ref '$ref' existiert nicht in $repo." >&2
@@ -27,6 +32,9 @@ for paar in "$KIT|$VER" "$CODE_KIT|$CODE_VER"; do
   }
 done
 SHA=$(git -C "$KIT" rev-parse --short "$VER^{commit}")
+HELP_SHA=$(git -C "$KIT" rev-parse --short "$KIT_HELP_REF^{commit}")
+git -C "$KIT" cat-file -e "$KIT_HELP_REF:src/obsidian/help-setting.ts" 2>/dev/null || {
+  echo "FEHLER: src/obsidian/help-setting.ts fehlt in $KIT@$KIT_HELP_REF." >&2; exit 2; }
 
 # Ein pures Modul kann in drei Schichten liegen. Statt fester Zuordnung wird gesucht — die
 # naechste Umschichtung im Kit soll dieses Skript nicht wieder toeten, sondern nur einen
@@ -99,6 +107,11 @@ for m in clock confirm folder-suggest settings_walker; do
   echo "vendored obsidian-kit@$VER/obsidian/$m.ts"
 done
 
+hole "$KIT" "$KIT_HELP_REF" "src/obsidian/help-setting.ts" "src/vendor/kit-obsidian/help-setting.ts" || {
+  echo "FEHLER: $KIT_HELP_REF:src/obsidian/help-setting.ts nicht lesbar" >&2; exit 2; }
+stamp "src/vendor/kit-obsidian/help-setting.ts" "src/obsidian/help-setting.ts" obsidian-kit "$KIT_HELP_REF"
+echo "vendored obsidian-kit@$KIT_HELP_REF/obsidian/help-setting.ts"
+
 hole "$KIT" "$VER" "src/testing/obsidian-mock.ts" "tests/vendor/kit/obsidian-mock.ts" || {
   echo "FEHLER: $VER:src/testing/obsidian-mock.ts nicht lesbar" >&2; exit 2; }
 stamp "tests/vendor/kit/obsidian-mock.ts" "src/testing/obsidian-mock.ts"
@@ -118,7 +131,7 @@ cat > src/vendor/kit-obsidian/VENDOR.json <<JSON
   "source": "obsidian-kit",
   "version": "$VER",
   "sha": "$SHA",
-  "vendored": "clock.ts, confirm.ts, folder-suggest.ts, settings_walker.ts",
+  "vendored": "clock.ts, confirm.ts, folder-suggest.ts, settings_walker.ts, help-setting.ts (Kit $KIT_HELP_REF, $HELP_SHA)",
   "note": "Verbatim snapshot. Never hand-edit. Re-vendor via tools/sync-kit.sh."
 }
 JSON

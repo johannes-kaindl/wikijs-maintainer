@@ -3,6 +3,10 @@
 // vergisst man sonst genau einmal pro Feature.
 export const STRINGS = {
   en: {
+    "settings.help.name": "Help",
+    "settings.help.desc": "Getting started, how-tos and troubleshooting",
+    "settings.help.openDocs": "Open documentation",
+    "settings.help.reportIssue": "Report an issue",
     "settings.url": "Wiki URL",
     "settings.url.desc": "Base URL of your Wiki.js instance, without /graphql.",
     "settings.key": "API key",
@@ -80,6 +84,10 @@ export const STRINGS = {
     "view.ambiguous.hint": "[[{0}]] stays plain text — rename one file or link by path.",
   },
   de: {
+    "settings.help.name": "Hilfe",
+    "settings.help.desc": "Erste Schritte, Anleitungen und Fehlersuche",
+    "settings.help.openDocs": "Dokumentation öffnen",
+    "settings.help.reportIssue": "Problem melden",
     "settings.url": "Wiki-URL",
     "settings.url.desc": "Basis-URL deiner Wiki.js-Instanz, ohne /graphql.",
     "settings.key": "API-Schlüssel",

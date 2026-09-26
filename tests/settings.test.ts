@@ -34,7 +34,8 @@ describe("WikijsSettingsTab", () => {
 
   it("definiert genau die erwarteten Felder in der erwarteten Reihenfolge", () => {
     const { tab } = makeTab();
-    const keys = tab.getSettingDefinitions().map((item) => (item as { control?: { key?: string } }).control?.key);
+    // Das erste Element ist die Hilfe-Zeile (Render-Hatch ohne control, tests/help-row.test.ts).
+    const keys = tab.getSettingDefinitions().slice(1).map((item) => (item as { control?: { key?: string } }).control?.key);
     expect(keys).toEqual(["baseUrl", "apiKey", "syncRoot", "locale", "timeoutSec"]);
   });
 

@@ -5,6 +5,9 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Added
+- **Hilfe-Zeile oben in den Einstellungen** mit Links auf die Dokumentation und den Issue-Tracker (Kit `help-setting`, `obsidian-kit` 0.43.0).
+
 ### Fixed
 - **Ein API-Schlüssel mit Zeichen außerhalb Latin-1 bricht mit lesbarer Meldung
   ab, statt in der Header-Konvertierung zu sterben.** Header-Werte sind
