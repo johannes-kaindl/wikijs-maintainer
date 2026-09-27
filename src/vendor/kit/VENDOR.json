@@ -3,6 +3,8 @@
   "version": "0.30.0",
   "sha": "6e571a4",
   "code_kit_version": "0.5.0",
-  "vendored": "settings.ts, i18n.ts, timeout.ts, frontmatter.ts, diff.ts",
-  "note": "Verbatim snapshot aus ZWEI Quellen (obsidian-kit + code-kit); welche Datei woher stammt, sagt ihr eigener Kopf. Never hand-edit. Re-vendor via tools/sync-kit.sh. kit-obsidian/ und tests/vendor/kit/ siehe deren VENDOR.json."
+  "vendored": "frontmatter.ts",
+  "note": "Verbatim snapshot aus ZWEI Quellen (obsidian-kit + code-kit); welche Datei woher stammt, sagt ihr eigener Kopf. Never hand-edit. Pins in tools/kit-sync.json, re-vendor via tools/sync-kit.sh (zentrales kit-sync im Dach). kit-obsidian/ und tests/vendor/kit/ siehe deren VENDOR.json.",
+  "code_kit_sha": "efcd456",
+  "code_kit_vendored": "settings.ts, i18n.ts, timeout.ts, diff.ts"
 }
