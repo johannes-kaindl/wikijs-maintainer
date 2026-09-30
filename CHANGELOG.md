@@ -5,6 +5,8 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-30
+
 ### Changed
 
 - **Der API-Schlüssel liegt jetzt im Schlüsselbund von Obsidian (Secret Storage), nicht mehr im Klartext in `data.json`.** Ein vorhandener Schlüssel wird beim ersten Start nach dem Update in den Schlüsselbund übernommen und aus `data.json` entfernt. Der Schlüsselbund gilt je Gerät: Wer das Vault auf ein zweites Gerät synchronisiert, trägt den Schlüssel dort einmal ein. Verwirft der Schlüsselbund den Wert, bleibt er in `data.json` und die Konsole warnt, statt ihn still zu verlieren. **Breaking:** `minAppVersion` steigt von 1.8.7 auf 1.11.4 (erst dort gibt es Secret Storage); ältere Obsidian-Versionen bleiben bei 0.2.1.
