@@ -1,11 +1,15 @@
 {
-  "sources": { "obsidian-kit": { "ref": "0.30.0" }, "code-kit": { "ref": "0.5.0" } },
+  "sources": { "obsidian-kit": { "ref": "0.45.1" }, "code-kit": { "ref": "0.8.0" } },
   "targets": [
-    { "dir": "src/vendor/kit", "source": "obsidian-kit", "from": "src/pure", "modules": ["frontmatter"] },
+    { "dir": "src/vendor/kit", "source": "obsidian-kit", "from": "src/pure", "modules": ["frontmatter", "secrets"] },
     { "dir": "src/vendor/kit", "source": "code-kit", "from": "src/ts/pure", "modules": ["settings", "i18n", "timeout", "diff"] },
     {
       "dir": "src/vendor/kit-obsidian", "source": "obsidian-kit", "from": "src/obsidian",
-      "modules": ["clock", "confirm", "folder-suggest", "settings_walker", { "name": "help-setting", "ref": "0.43.0" }]
+      "modules": ["clock", "confirm", "folder-suggest", "settings_walker", "help-setting"]
+    },
+    {
+      "dir": "src/vendor/kit-obsidian", "source": "obsidian-kit", "from": "src/obsidian", "modules": ["secrets"],
+      "rewrite": [["../pure/", "../kit/"]]
     },
     { "dir": "tests/vendor/kit", "source": "obsidian-kit", "from": "src/testing", "modules": ["obsidian-mock"] }
   ]

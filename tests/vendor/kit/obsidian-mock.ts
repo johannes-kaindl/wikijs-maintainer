@@ -1,4 +1,4 @@
-// vendored from obsidian-kit@0.30.0, src/testing/obsidian-mock.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from obsidian-kit@0.45.1, src/testing/obsidian-mock.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 // Self-contained Obsidian test double for obsidian-kit.
 // - Zero external imports (NOT from "obsidian", NOT from "vitest").
 // - Consumed via vitest `resolve.alias` as a drop-in for `import ... from "obsidian"`,
@@ -106,6 +106,15 @@ export function makeFakeEl(tagName = "DIV"): any {
      *  über die Reihenfolge der Kinder ist nur dort belastbar, wo kein Knoten umgehängt
      *  wurde (der Modell-Picker hängt seine Komponenten aus `controlEl` in den Slot um). */
     appendChild: (c: any) => { if (c && typeof c === "object") c.parentElement = el; children.push(c); return c; },
+    /** `ref === null` haengt ans Ende an, wie im echten DOM. Fehlt `ref` im eigenen
+     *  Kinder-Array, wird ebenfalls ans Ende angehaengt statt zu werfen (Fake-Element
+     *  ist tolerant, kein Spezifikations-Double). */
+    insertBefore: (c: any, ref: any) => {
+      if (c && typeof c === "object") c.parentElement = el;
+      const i = ref === null || ref === undefined ? -1 : children.indexOf(ref);
+      if (i < 0) children.push(c); else children.splice(i, 0, c);
+      return c;
+    },
     removeChild: (c: any) => {
       const i = children.indexOf(c);
       if (i >= 0) children.splice(i, 1);
@@ -217,13 +226,15 @@ export class TextComponent {
   inputEl: any = makeFakeEl("INPUT");
   protected _value = "";
   onChangeCB: ((v: string) => any) | null = null;
+  placeholder = "";
+  disabled = false;
   constructor() {
     this.inputEl.__component = this;
   }
   getValue(): string { return this._value; }
   setValue(v: string): this { this._value = String(v ?? ""); return this; }
-  setPlaceholder(_p: string): this { return this; }
-  setDisabled(_d: boolean): this { return this; }
+  setPlaceholder(p: string): this { this.placeholder = String(p ?? ""); return this; }
+  setDisabled(d: boolean): this { this.disabled = Boolean(d); return this; }
   onChange(cb: (v: string) => any): this { this.onChangeCB = cb; return this; }
 }
 export class TextAreaComponent extends TextComponent {
@@ -250,8 +261,9 @@ export class DropdownComponent {
   options: Record<string, string> = {};
   protected _value = "";
   onChangeCB: ((v: string) => any) | null = null;
-  constructor() {
+  constructor(containerEl?: any) {
     this.selectEl.__component = this;
+    if (containerEl?.appendChild) containerEl.appendChild(this.selectEl);
   }
   addOption(value: string, display: string): this { this.options[value] = display; return this; }
   addOptions(options: Record<string, string>): this { Object.assign(this.options, options); return this; }
@@ -406,6 +418,10 @@ export class Plugin {
   registerEvent(_evt: any): void {}
   registerDomEvent(..._args: any[]): void {}
   registerInterval(id: number): number { return id; }
+  __protocolHandlers: Record<string, (params: Record<string, string>) => void> = {};
+  registerObsidianProtocolHandler(action: string, handler: (params: Record<string, string>) => any): void {
+    this.__protocolHandlers[action] = handler;
+  }
 }
 
 export class PluginSettingTab {
@@ -464,6 +480,82 @@ export class Setting {
 }
 
 // ---------------------------------------------------------------------------
+// Editor double.
+// ---------------------------------------------------------------------------
+/** Ein kleiner, ehrlicher Editor auf echtem Text: Zeilen, Cursor und Auswahl sind
+ *  ausgerechnet, keine Konstanten. Adapter, die `lineCount()`/`getLine()`/`getSelection()`
+ *  lesen, messen damit ihre eigene Rechnung statt der des Doubles.
+ *
+ *  Cursor-Vokabel wie in Obsidian: gespeichert sind `anchor` (wo die Auswahl begann) und
+ *  `head` (wo sie endet); `from`/`to` sind daraus sortiert, `getCursor()` ohne Argument
+ *  liefert den Kopf. */
+export function makeFakeEditor(initial = ""): any {
+  let value = initial;
+  let anchor = { line: 0, ch: 0 };
+  let head = { line: 0, ch: 0 };
+  const lines = () => value.split("\n");
+  const posToOffset = (pos: any) => {
+    const ls = lines();
+    const line = Math.max(0, Math.min(pos?.line ?? 0, ls.length - 1));
+    let off = 0;
+    for (let i = 0; i < line; i++) off += (ls[i] ?? "").length + 1;
+    return off + Math.max(0, Math.min(pos?.ch ?? 0, (ls[line] ?? "").length));
+  };
+  const offsetToPos = (offset: number) => {
+    const ls = lines();
+    let rest = Math.max(0, Math.min(offset, value.length));
+    for (let i = 0; i < ls.length; i++) {
+      const len = (ls[i] ?? "").length;
+      if (rest <= len) return { line: i, ch: rest };
+      rest -= len + 1;
+    }
+    return { line: ls.length - 1, ch: (ls[ls.length - 1] ?? "").length };
+  };
+  const sortiert = () => (posToOffset(anchor) <= posToOffset(head) ? [anchor, head] : [head, anchor]);
+  return {
+    getValue: () => value,
+    setValue: (v: string) => { value = v; anchor = { line: 0, ch: 0 }; head = { line: 0, ch: 0 }; },
+    lineCount: () => lines().length,
+    lastLine: () => lines().length - 1,
+    getLine: (n: number) => lines()[n] ?? "",
+    getCursor: (which?: string) => {
+      const [von, bis] = sortiert();
+      if (which === "anchor") return { ...anchor };
+      if (which === "from") return { ...(von as any) };
+      if (which === "to") return { ...(bis as any) };
+      return { ...head };
+    },
+    setCursor: (pos: any, ch?: number) => {
+      const p = typeof pos === "number" ? { line: pos, ch: ch ?? 0 } : { ...pos };
+      anchor = p; head = { ...p };
+    },
+    setSelection: (von: any, bis?: any) => { anchor = { ...von }; head = { ...(bis ?? von) }; },
+    somethingSelected: () => posToOffset(anchor) !== posToOffset(head),
+    getSelection: () => {
+      const [von, bis] = sortiert();
+      return value.slice(posToOffset(von), posToOffset(bis));
+    },
+    getRange: (von: any, bis: any) => value.slice(posToOffset(von), posToOffset(bis)),
+    replaceSelection: (text: string) => {
+      const [von, bis] = sortiert();
+      const a = posToOffset(von);
+      value = value.slice(0, a) + text + value.slice(posToOffset(bis));
+      const ende = offsetToPos(a + text.length);
+      anchor = { ...ende }; head = { ...ende };
+    },
+    replaceRange: (text: string, von: any, bis?: any) => {
+      const a = posToOffset(von);
+      const b = bis === undefined ? a : posToOffset(bis);
+      value = value.slice(0, Math.min(a, b)) + text + value.slice(Math.max(a, b));
+    },
+    posToOffset,
+    offsetToPos,
+    focus: () => {},
+    refresh: () => {},
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Views & modals.
 // ---------------------------------------------------------------------------
 export class ItemView {
@@ -481,18 +573,30 @@ export class ItemView {
   addAction(_icon: string, _title: string, _cb: any): any { return makeFakeEl(); }
 }
 
-export class MarkdownView extends ItemView {
-  editor: any = {
-    getValue: () => "",
-    setValue: (_v: string) => {},
-    getCursor: () => ({ line: 0, ch: 0 }),
-    replaceSelection: (_s: string) => {},
-  };
+/** Ansicht MIT Datei. In Obsidian die Basis jeder Notiz-Ansicht; Adapter, die Tabs
+ *  einsammeln, pruefen genau darauf (`view instanceof FileView && view.file !== null`),
+ *  weil eine Ansicht ohne Datei keine Notiz ist. */
+export class FileView extends ItemView {
+  file: any = null;
+  allowNoFile = false;
+  getViewType(): string { return "file-view"; }
+  async onLoadFile(_file: any): Promise<void> {}
+  async onUnloadFile(_file: any): Promise<void> {}
+}
+
+// DOKUMENTIERTE ABWEICHUNG von der echten Hierarchie: dort ist
+// `MarkdownView extends TextFileView`. Hier haengen beide direkt unter FileView, weil
+// TextFileViews `addAction`-Override eine Mock-Erweiterung fuer Kopfzeilen-Tests ist und
+// kein Obsidian-Verhalten — sie unter MarkdownView zu ziehen, aenderte stillschweigend
+// das Verhalten in jedem Consumer, der MarkdownView.addAction() misst. Der Vertrag, auf
+// den Adapter pruefen (`instanceof FileView`, `.file`), stimmt in beiden Formen.
+export class MarkdownView extends FileView {
+  editor: any = makeFakeEditor();
   getMode(): string { return "source"; }
   getViewType(): string { return "markdown"; }
 }
 
-export class TextFileView extends ItemView {
+export class TextFileView extends FileView {
   data = "";
   actionsEl: any = makeFakeEl();
   saveCount = 0;
@@ -529,10 +633,25 @@ export class Modal {
 export class WorkspaceLeaf {
   view: any = null;
   app: any = {};
+  /** Der Knoten, unter dem dieses Leaf haengt — vom Test gesetzt (z.B. auf
+   *  `app.workspace.leftSplit`). Ohne parent wurzelt ein Leaf in sich selbst. */
+  parent: any = null;
+  /** Der zuletzt gesetzte View-State. Hier steht bei restaurierten, noch nicht besuchten
+   *  Tabs der Dateipfad (`state.file`) — sie sind DeferredViews ohne `view.file`. */
+  __state: any = {};
   async setViewState(state: any): Promise<void> {
     if (state?.type) this.view = { ...(this.view ?? {}), type: state.type };
+    this.__state = { ...(state ?? {}) };
   }
-  getViewState(): any { return {}; }
+  getViewState(): any { return { ...this.__state }; }
+  /** Wurzel der parent-Kette. Adapter unterscheiden damit Tabs (wurzeln im `rootSplit`)
+   *  von Seitenleisten-Ansichten (wurzeln im `leftSplit`/`rightSplit`). */
+  getRoot(): any {
+    let node: any = this.parent;
+    if (!node) return this;
+    while (node.parent) node = node.parent;
+    return node;
+  }
   async openFile(_file: any): Promise<void> {}
   setEphemeralState(_state: any): void {}
   getDisplayText(): string { return ""; }
@@ -670,7 +789,24 @@ export const requestUrl: MockFn = fn((..._args: any[]) => Promise.resolve({
 // Fake App (image-to-markdown / vault-rag superset; spies via internal `fn`).
 // ---------------------------------------------------------------------------
 export function makeFakeApp(): any {
+  // Der Workspace haelt eine Selbstreferenz, damit `iterateAllLeaves` ueber die vom Test
+  // registrierten Leaves laufen kann (`workspace.__leaves`).
+  const workspace: any = {};
   return {
+    // Schlüsselbund-Double (Obsidian ≥ 1.11.4): Map statt Keychain. Die ID-Regel der echten
+    // API („lowercase alphanumeric with optional dashes", setSecret wirft sonst) wird
+    // nachgebildet, damit ein Test einen falschen Präfix findet, bevor es der Nutzer tut.
+    secretStorage: (() => {
+      const secrets = new Map<string, string>();
+      return {
+        __secrets: secrets,
+        getSecret: (id: string): string | null => secrets.get(id) ?? null,
+        setSecret: (id: string, value: string): void => {
+          if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`invalid secret id: ${id}`);
+          secrets.set(id, value);
+        },
+      };
+    })(),
     vault: {
       adapter: {
         read: fn().mockResolvedValue(""),
@@ -692,18 +828,30 @@ export function makeFakeApp(): any {
       modify: fn().mockResolvedValue(undefined),
       on: fn().mockReturnValue({ id: "mock-event" }),
     },
-    workspace: {
+    workspace: Object.assign(workspace, {
       getActiveFile: fn().mockReturnValue(null),
       getActiveViewOfType: fn().mockReturnValue(null),
       getLeavesOfType: fn().mockReturnValue([]),
       getRightLeaf: fn().mockReturnValue({ setViewState: fn() }),
       getLeftLeaf: fn().mockReturnValue({ setViewState: fn() }),
       getLeaf: fn().mockReturnValue(new WorkspaceLeaf()),
+      // Die drei Wurzeln, an denen `WorkspaceLeaf.getRoot()` endet. Eigene Marker-Objekte,
+      // damit ein Test sie unterscheiden kann — im Mock haengt kein Baum daran.
+      rootSplit: { __split: "root" },
+      leftSplit: { __split: "left" },
+      rightSplit: { __split: "right" },
+      /** Vom Test registrierte Leaves; Grundlage von `iterateAllLeaves`. */
+      __leaves: [] as any[],
+      iterateAllLeaves: fn((cb: any) => { for (const leaf of workspace.__leaves) cb(leaf); }),
+      // Bewusst leer per Default: "zuletzt benutzt" ist eine Nutzungshistorie, die das
+      // Double nicht hat. Der Test setzt den aktiven Leaf selbst (`mockReturnValue`),
+      // statt dass der Mock eine Reihenfolge erfindet.
+      getMostRecentLeaf: fn().mockReturnValue(null),
       on: fn(),
       off: fn(),
       revealLeaf: fn(),
       onLayoutReady: fn((cb: any) => { if (typeof cb === "function") cb(); }),
-    },
+    }),
     metadataCache: {
       getFileCache: fn().mockReturnValue(null),
       getFirstLinkpathDest: fn().mockReturnValue(null),
@@ -778,8 +926,10 @@ export const defaultStubs = {
   requestUrl,
   // plugin-specific extensions
   TAbstractFile,
+  FileView,
   MarkdownView,
   TextFileView,
+  makeFakeEditor,
   Scope,
   AbstractInputSuggest,
   FuzzySuggestModal,
