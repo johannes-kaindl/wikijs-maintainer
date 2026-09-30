@@ -1,6 +1,6 @@
 # Getting started
 
-This takes you from the install to your first published page. You need Obsidian 1.8.7 or newer, the plugin installed (see the [README](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/README.md#install)) and a **Wiki.js 2.x** instance you can reach.
+This takes you from the install to your first published page. You need Obsidian 1.11.4 or newer, the plugin installed (see the [README](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/README.md#install)) and a **Wiki.js 2.x** instance you can reach.
 
 ## 1. Create an API key in Wiki.js
 

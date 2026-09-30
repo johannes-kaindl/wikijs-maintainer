@@ -12,6 +12,8 @@ import { askRemoval } from "./obsidian/removal-modal";
 import { WikijsStatusView, VIEW_TYPE_WIKIJS_STATUS } from "./obsidian/status-view";
 import { describeError, describeOutcome, describePullOutcome } from "./obsidian/describe-outcome";
 import { formatReport } from "./obsidian/format-report";
+import { loadApiKey, persistApiKey } from "./core/api-key-storage";
+import { obsidianSecretStore } from "./vendor/kit-obsidian/secrets";
 
 /** Einstiegspunkt. Bewusst duenn: Commands und Wiring kommen mit den
  *  Plan-Tasks hinzu, die Fachlogik lebt in `src/core/`. */
@@ -26,6 +28,13 @@ export default class WikijsMaintainerPlugin extends Plugin {
     setLang(pickLang(getLanguage()));
 
     this.settings = mergeWikijsSettings(await this.loadData());
+    // Der API-Schluessel gehoert in Obsidians Schluesselbund (garantiert ab minAppVersion
+    // 1.11.4), nicht in data.json (Klartext, wandert mit jedem Vault-Sync). Ein Altwert aus
+    // data.json wird beim ersten Laden hinuebergeschrieben und dort geleert; im Speicher steht
+    // er weiterhin, damit die Netzwege ihn wie bisher unter `settings.apiKey` finden.
+    const apiKeyLoad = loadApiKey(this.settings.apiKey, obsidianSecretStore(this.app));
+    this.settings.apiKey = apiKeyLoad.apiKey;
+    if (apiKeyLoad.migrate) await this.saveSettings();
     this.addSettingTab(new WikijsSettingsTab(this.app, this));
 
     // Dienst wird pro Leaf frisch via buildService() erzeugt (s. Kommentar dort) --
@@ -70,7 +79,11 @@ export default class WikijsMaintainerPlugin extends Plugin {
   }
 
   async saveSettings(): Promise<void> {
-    await this.saveData(this.settings);
+    // Schluessel in den Schluesselbund, data.json ohne ihn — das Speicherobjekt bleibt
+    // unangetastet (die Netzwege lesen daraus). Verwirft der Schluesselbund den Wert,
+    // liefert persistApiKey ihn fuer data.json zurueck (Klartext mit Warnung, kein Verlust).
+    const storedApiKey = persistApiKey(this.settings.apiKey, obsidianSecretStore(this.app), (m) => console.warn(m));
+    await this.saveData({ ...this.settings, apiKey: storedApiKey });
   }
 
   // Minor-Befund „Verwaister i18n-Schluessel notice.noUrl": ohne Wiki-URL/API-Key baut

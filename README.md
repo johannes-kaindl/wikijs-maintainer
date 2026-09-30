@@ -32,7 +32,7 @@ Obsidian plugin that publishes and syncs notes from one folder of your vault to 
 
 ## Requirements
 
-- Obsidian 1.8.7 or newer.
+- Obsidian 1.11.4 or newer.
 - A **Wiki.js 2.x** instance you can reach over HTTPS.
 - An API key from a Wiki.js group with **write access to pages**
   (Administration → Groups → API Access).

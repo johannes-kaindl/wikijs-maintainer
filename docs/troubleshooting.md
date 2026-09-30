@@ -26,7 +26,7 @@ Each entry starts with what you see — the wording is the plugin's own English 
 
 The **API key** field masks its content on purpose, so the key is not readable in screenshots or during screen sharing. You cannot reveal it in the settings.
 
-**Fix:** to check which key is stored, create a new key in Wiki.js (**Administration → API Access**) and paste it into the field; the old one stays valid until you revoke it there. The key is kept in the plugin's `data.json` in the vault's `.obsidian/plugins/wikijs-maintainer/` folder.
+**Fix:** to check which key is stored, create a new key in Wiki.js (**Administration → API Access**) and paste it into the field; the old one stays valid until you revoke it there. Since 0.3.0 the key is kept in Obsidian's keychain (Secret Storage), not in the plugin's `data.json`, so it no longer travels with the vault through sync. The keychain is per device: after syncing the vault to another device, enter the key there once. A key from an older version is moved into the keychain automatically on the first start.
 
 ## The wiki could not be reached
 

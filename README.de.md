@@ -33,7 +33,7 @@ mit ihr abgleicht.
 
 ## Voraussetzungen
 
-- Obsidian 1.8.7 oder neuer.
+- Obsidian 1.11.4 oder neuer.
 - Eine **Wiki.js-2.x**-Instanz, die über HTTPS erreichbar ist.
 - Einen API-Schlüssel aus einer Wiki.js-Gruppe mit **Schreibrecht auf Seiten**
   (Administration → Gruppen → API-Zugriff).
