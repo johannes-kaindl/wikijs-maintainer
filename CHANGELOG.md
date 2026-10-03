@@ -1,7 +1,6 @@
 # Changelog
 
-Alle nennenswerten Änderungen an diesem Plugin. Format: [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
-Versionierung nach [SemVer](https://semver.org/lang/de/).
+All notable changes to this plugin. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning according to [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
@@ -9,8 +8,8 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ### Changed
 
-- **Der API-Schlüssel liegt jetzt im Schlüsselbund von Obsidian (Secret Storage), nicht mehr im Klartext in `data.json`.** Ein vorhandener Schlüssel wird beim ersten Start nach dem Update in den Schlüsselbund übernommen und aus `data.json` entfernt. Der Schlüsselbund gilt je Gerät: Wer das Vault auf ein zweites Gerät synchronisiert, trägt den Schlüssel dort einmal ein. Verwirft der Schlüsselbund den Wert, bleibt er in `data.json` und die Konsole warnt, statt ihn still zu verlieren. **Breaking:** `minAppVersion` steigt von 1.8.7 auf 1.11.4 (erst dort gibt es Secret Storage); ältere Obsidian-Versionen bleiben bei 0.2.1.
-- Kit-Vendoring von `obsidian-kit` 0.30.0 auf 0.45.1 und `code-kit` 0.5.0 auf 0.8.0 gehoben (neu: Modul `secrets`); Gate und 243 Tests liefen vorher wie nachher grün.
+- **The API key now lives in Obsidian's keychain (Secret Storage) instead of in plain text in `data.json`.** An existing key is moved into the keychain on the first start after the update and removed from `data.json`. The keychain is per device: if you sync the vault to a second device, enter the key there once. If the keychain rejects the value, it stays in `data.json` and the console warns instead of silently losing it. **Breaking:** `minAppVersion` rises from 1.8.7 to 1.11.4 (Secret Storage only exists from there); older Obsidian versions stay on 0.2.1.
+- Kit vendoring raised from `obsidian-kit` 0.30.0 to 0.45.1 and from `code-kit` 0.5.0 to 0.8.0 (new: module `secrets`); the gate and 243 tests ran green before and after.
 
 ### Added
 
@@ -19,141 +18,67 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 ## [0.2.1] — 2026-09-26
 
 ### Changed
-- **Das Feld „API-Schlüssel" in den Einstellungen zeigt Punkte statt Klartext.** Der Schlüssel stand bisher lesbar im Feld — sichtbar bei Screenshots und Bildschirmfreigaben. Die Zeile ist eine `render`-Hatch mit `type="password"`, weil Obsidians deklarative Einstellungen keinen Passwort-Typ kennen; sie bleibt über die Einstellungs-Suche auffindbar („token", „bearer", „api key"). Gespeichert wird unverändert in `data.json`; ein Wechsel auf den Schlüsselbund ist nicht Teil dieser Änderung.
+- **The "API key" field in the settings shows dots instead of plain text.** Until now the key was readable in the field — visible in screenshots and screen shares. The row is a `render` hatch with `type="password"`, because Obsidian's declarative settings have no password type; it stays findable through the settings search ("token", "bearer", "api key"). Storage is unchanged in `data.json`; moving to the keychain is not part of this change.
 
 ## [0.2.0] — 2026-09-26
 
 ### Added
-- **Hilfe-Zeile oben in den Einstellungen** mit Links auf die Dokumentation und den Issue-Tracker (Kit `help-setting`, `obsidian-kit` 0.43.0).
+- **Help row at the top of the settings** with links to the documentation and the issue tracker (kit `help-setting`, `obsidian-kit` 0.43.0).
 
 ### Fixed
-- **Ein API-Schlüssel mit Zeichen außerhalb Latin-1 bricht mit lesbarer Meldung
-  ab, statt in der Header-Konvertierung zu sterben.** Header-Werte sind
-  ByteStrings — ein Schlüssel mit z. B. „•" ließ `requestUrl`/`fetch` bisher mit
-  „Cannot convert argument to a ByteString …" abstürzen. Der GraphQL-Client
-  prüft das jetzt vor jedem Request.
+- **An API key with characters outside Latin-1 now aborts with a readable message instead of dying in the header conversion.** Header values are ByteStrings — a key containing, for example, "•" used to make `requestUrl`/`fetch` crash with "Cannot convert argument to a ByteString …". The GraphQL client now checks this before every request.
 
 ### Changed
-- **`scripts/shots.ts` schreibt für `settings.png` keinen Nicht-ASCII-Platzhalter
-  mehr in die Vault-Einstellungen.** Bisher landete `"•".repeat(48)` dauerhaft in
-  der `data.json` des Aufnahme-Vaults — der nächste GUI-Smoke-Lauf erbte den
-  kaputten Schlüssel und brach beim ersten GraphQL-Fetch ab. Die Maskierung
-  fürs Bild passiert jetzt in der Darstellung (`type="password"` nur für die
-  Aufnahme), der gespeicherte Wert ist ein ASCII-Platzhalter.
-- **GUI-Smoke prüft den API-Schlüssel auf Latin-1-Tauglichkeit, bevor er in
-  einen Header wandert** — ein beschädigter Schlüssel im Vault meldet sich jetzt
-  als roter Prüfpunkt mit Bilanz, nicht als nackter Abbruch ohne Ergebnis.
+- **`scripts/shots.ts` no longer writes a non-ASCII placeholder into the vault settings for `settings.png`.** Previously `"•".repeat(48)` ended up permanently in the `data.json` of the recording vault — the next GUI smoke run inherited the broken key and aborted on the first GraphQL fetch. The masking for the image now happens in the rendering (`type="password"` only for the recording); the stored value is an ASCII placeholder.
+- **The GUI smoke checks the API key for Latin-1 suitability before it goes into a header** — a damaged key in the vault now shows up as a red check point with a tally, not as a bare abort without a result.
 
 ## [0.1.3] — 2026-08-18
 
 ### Changed
-- **README bebildert.** Vier Bilder (Status-Ansicht, Settings-Tab, Konflikt-
-  und Entfernen-Dialog) in `README.md`/`README.de.md` — bis dahin trug die
-  README nur Badges. Aufnahme-Treiber und -Vertrag in `docs/images/`.
-- **`README.de.md` inhaltlich auf 0.1.2 nachgezogen.** Die deutsche Fassung
-  war seit dem MVP eingefroren: „Noch nicht im Community Store" (ist es seit
-  2026-08-12), die Grenzen-Liste kannte weder „Seite übernehmen" noch
-  „Snapshot verwerfen". Außerdem ein doppelter „Requirements"-Abschnitt in
-  der englischen Fassung entfernt.
-- **GUI-Smoke automatisiert die vier 0.1.2-Sackgassen-Ausgänge** (Belegter
-  Slug eigen/fremd, verwaister Snapshot, kein stiller Abbruch bei extern
-  gelöschter Notiz) — 11/11 statt 7/7, Gegenprobe belegt.
-- **CDP-Brücke des GUI-Smoke importiert die zentrale Dach-Fassung**
-  (`tools/obsidian-cdp/`) statt sie inline zu tragen; behebt dabei eine
-  Fokus-Guard-Lücke (Chromium drosselt nicht-fokussierte Fenster, ohne
-  Nachschau lief das unbemerkt).
+- **README illustrated.** Four images (status view, settings tab, conflict and removal dialogs) in `README.md`/`README.de.md` — until then the README carried only badges. Recording driver and contract in `docs/images/`.
+- **`README.de.md` brought up to date with 0.1.2.** The German version had been frozen since the MVP: "Not yet in the Community Store" (it has been since 2026-08-12), and the limits list knew neither "Adopt page" nor "Discard snapshot". Also removed a duplicated "Requirements" section from the English version.
+- **The GUI smoke automates the four 0.1.2 dead-end exits** (occupied slug own/foreign, orphaned snapshot, no silent abort for an externally deleted note) — 11/11 instead of 7/7, counter-check verified.
+- **The GUI smoke's CDP bridge imports the central umbrella version** (`tools/obsidian-cdp/`) instead of carrying it inline; this also fixes a focus-guard gap (Chromium throttles unfocused windows, which went unnoticed without a check).
 
 ## [0.1.2] — 2026-08-14
 
 ### Added
-- **Ausgang aus „Belegt".** Die Status-Ansicht bietet für einen belegten Slug
-  „Seite übernehmen": das Plugin holt die Wiki-Seite und trägt den fehlenden
-  Snapshot **nur dann** nach, wenn ihr Inhalt Zeichen für Zeichen der eigenen
-  Fassung entspricht. Damit ist genau der Weg abgedeckt, auf dem dieser Zustand
-  tatsächlich entsteht (Seite angelegt, Snapshot-Schreiben danach gescheitert).
-  Weicht der Inhalt ab, ist es eine fremde Seite — dann wird nichts übernommen
-  und das auch gesagt. Der Weg schreibt nie ins Wiki.
-- **Ausgang aus „Veralteter Snapshot".** Zeilen ohne lokale Notiz und ohne
-  Wiki-Seite bekommen „Snapshot verwerfen". Der Dienst verweigert das Löschen,
-  solange eines von beiden noch existiert: ein Snapshot ist die Grundlage jedes
-  späteren Drift-Vergleichs.
+- **Exit from "Occupied".** For an occupied slug the status view offers "Adopt page": the plugin fetches the wiki page and records the missing snapshot **only if** its content matches your own version character for character. This covers exactly the path on which this state actually arises (page created, writing the snapshot failed afterwards). If the content differs, it is a foreign page — then nothing is adopted and it says so. The path never writes to the wiki.
+- **Exit from "Stale snapshot".** Rows with no local note and no wiki page get "Discard snapshot". The service refuses the deletion as long as either of the two still exists: a snapshot is the basis of every later drift comparison.
 
 ### Fixed
-- **Drei stille Abbrüche in der Status-Ansicht melden sich.** Eine zwischen
-  Anzeige und Klick entstandene Slug-Kollision, ein verschwundener Eintrag und
-  eine fehlende lokale Notiz führten zu keinem Push **und** zu keiner Meldung.
-- **Die Status-Ansicht liest die Fehlereinstufung des Clients.** Ein abgelehnter
-  API-Schlüssel erschien dort weiterhin als nacktes „Forbidden" — derselbe
-  Befund, der am 2026-08-12 für die Commands behoben wurde, eine Tür weiter.
-- **Fremde Dateiendungen werden abgeschnitten statt in den Slug gezogen.**
-  `Not-A-Page.canvas` ergab den Pfad `not-a-pagecanvas`; Notiznamen mit Punkt
-  (`Node.js Grundlagen.md`) bleiben unberührt.
-- **Ein unvollständiger Plan-Eintrag wird nicht mehr als Slug-Kollision
-  gemeldet.** Er hat einen eigenen Grund und eine eigene Meldung; die alte
-  schickte den Nutzer auf die Suche nach einer Seite, die es nicht gibt.
-- **Der Kollisionshinweis verdeckt die Zustandsbeschriftung nicht mehr** — die
-  Zeile zeigt beides.
+- **Three silent aborts in the status view now report themselves.** A slug collision that arose between display and click, a vanished entry and a missing local note led to no push **and** no message.
+- **The status view reads the client's error classification.** A rejected API key still appeared there as a bare "Forbidden" — the same finding that was fixed for the commands on 2026-08-12, one door further.
+- **Foreign file extensions are cut off instead of being pulled into the slug.** `Not-A-Page.canvas` produced the path `not-a-pagecanvas`; note names with a dot (`Node.js Grundlagen.md`) stay untouched.
+- **An incomplete plan entry is no longer reported as a slug collision.** It has its own reason and its own message; the old one sent the user searching for a page that does not exist.
+- **The collision hint no longer covers the state label** — the row shows both.
 
 ### Changed
-- Blockierungsgründe sind jetzt typmäßig erschöpfend behandelt (`assertNever`):
-  ein neuer Grund ohne eigene Meldung bricht den Build, statt in der zuletzt
-  genannten Meldung zu landen. Genau dieser Weg hatte den Fehler oben erzeugt.
-- 235 Tests (vorher 225), darunter der bis dahin ungetestete Schreib-Adapter,
-  der beim Pull Dateien im Vault anlegt.
+- Blocking reasons are now handled exhaustively by type (`assertNever`): a new reason without its own message breaks the build instead of ending up in the last message listed. Exactly this path had produced the bug above.
+- 235 tests (previously 225), including the previously untested write adapter that creates files in the vault during a pull.
 
 ## [0.1.1] — 2026-08-12
 
 ## [0.1.0] — 2026-08-12
 
 ### Added
-- Ein-Weg-Sync (Push/Pull) eines Vault-Ordners gegen eine Wiki.js-2.x-Instanz
-  über GraphQL, snapshot-basiert (`src/core/sync-plan.ts` + `snapshot.ts`):
-  Vault-Pfad ↔ Wiki-Pfad per deterministischer Slugifizierung, Drift-Guard
-  unmittelbar vor jedem Schreiben (`updatedAt`-Vergleich als String).
-- Vier Commands: „Sync-Status anzeigen", „Aktuelle Notiz pushen", „Alle
-  Änderungen pushen", „Aktuelle Notiz vom Wiki pullen".
-- Status-Ansicht mit Push-/Pull-Knöpfen je Zeile; Warnblöcke für
-  Slug-Kollisionen (sperrt den Push für die betroffenen Seiten) und für
-  mehrdeutige Notiznamen (sperrt nichts — `[[Name]]` bleibt dort Text statt
-  Link).
-- Konflikt-Dialog mit Zeilen-Diff (lokal vs. Wiki), auch wenn die Wiki-Seite
-  zwischenzeitlich auf den alten Stand zurückgesetzt wurde. Kein Merge im
-  MVP — die Entscheidung liegt beim Nutzer (lokal behalten / abbrechen; „Wiki
-  behalten" bricht den Push nur ab, holt die Wiki-Fassung aber **nicht** in
-  den Vault — ein Konflikt-Eintrag ist nicht pull-fähig, s. Grenzen unten).
-- Entfernen-Dialog beim Herausnehmen einer Notiz aus dem Sync-Ordner:
-  Depublizieren (Default) / Löschen / Behalten; Esc bedeutet immer Behalten.
-- Sammel-Push läuft sequenziell und sammelt Fehler statt beim ersten
-  Fehlschlag abzubrechen; der Report zählt Angelegt/Aktualisiert/Blockiert/
-  Fehler.
-- Obsidian-Markdown → Wiki.js-Markdown: Wikilinks → Wiki-Links, Callouts →
-  Wiki.js-Blockquote-Klassen (`is-info`/`is-success`/`is-warning`/
-  `is-danger`).
-- GraphQL-Client über `requestUrl` mit Timeout und normalisierten Fehlern
-  (`src/wikijs/client.ts`); Schema gegen eine laufende Instanz gemessen statt
-  aus der Doku abgeleitet (`docs/LAB.md`, Werkzeug `npm run lab:wikijs`).
-- Vollständige i18n (DE/EN, EN kanonisch).
-- 158 Tests, Gate grün (`lint`, `typecheck`, `typecheck:scripts`, `test`,
-  `check:pure`, `build`).
+- One-way sync (push/pull) of a vault folder against a Wiki.js 2.x instance via GraphQL, snapshot-based (`src/core/sync-plan.ts` + `snapshot.ts`): vault path ↔ wiki path through deterministic slugification, drift guard immediately before every write (`updatedAt` comparison as a string).
+- Four commands: "Show sync status", "Push current note", "Push all changes", "Pull current note from wiki".
+- Status view with push/pull buttons per row; warning blocks for slug collisions (blocks the push for the pages concerned) and for ambiguous note names (blocks nothing — `[[Name]]` stays text instead of a link there).
+- Conflict dialog with a line diff (local vs. wiki), even if the wiki page was reset to the old state in the meantime. No merge in the MVP — the decision is up to the user (keep local / cancel; "keep wiki" only cancels the push but does **not** bring the wiki version into the vault — a conflict entry cannot be pulled, see limits below).
+- Removal dialog when a note is taken out of the sync folder: unpublish (default) / delete / keep; Esc always means keep.
+- Bulk push runs sequentially and collects errors instead of stopping at the first failure; the report counts Created/Updated/Blocked/Errors.
+- Obsidian Markdown → Wiki.js Markdown: wikilinks → wiki links, callouts → Wiki.js blockquote classes (`is-info`/`is-success`/`is-warning`/`is-danger`).
+- GraphQL client over `requestUrl` with timeout and normalised errors (`src/wikijs/client.ts`); schema measured against a running instance instead of derived from the docs (`docs/LAB.md`, tool `npm run lab:wikijs`).
+- Full i18n (DE/EN, EN canonical).
+- 158 tests, gate green (`lint`, `typecheck`, `typecheck:scripts`, `test`, `check:pure`, `build`).
 
-### Limits (bewusst nicht im MVP)
-- Bilder/Assets werden nicht synchronisiert (V2).
-- Kein Drei-Wege-Merge bei Konflikten (V3) — die Snapshot-Struktur ist bereits
-  die Basis dafür.
-- Kein automatischer Pull aus einem Konflikt heraus: solange eine Seite
-  sowohl lokal als auch im Wiki geändert ist, gibt es keinen Weg, die
-  Wiki-Fassung per Knopfdruck in den Vault zu holen — nur „Neu im Wiki" und
-  „Im Wiki geändert" sind pull-fähig. Wer die Wiki-Fassung will, kopiert sie
-  aus dem Diff im Konflikt-Dialog oder gleicht die lokale Datei von Hand an,
-  bis der Konflikt aufgelöst ist.
+### Limits (deliberately not in the MVP)
+- Images/assets are not synchronised (V2).
+- No three-way merge on conflicts (V3) — the snapshot structure is already the basis for it.
+- No automatic pull out of a conflict: as long as a page is changed both locally and in the wiki, there is no way to bring the wiki version into the vault with one click — only "New on wiki" and "Changed on wiki" can be pulled. If you want the wiki version, copy it from the diff in the conflict dialog or align the local file by hand until the conflict is resolved.
 
-### Verifiziert
+### Verified
 
-- Gegen eine echte Wiki.js-2.x-Instanz und ein laufendes Obsidian geprüft, nicht nur
-  gegen Attrappen: `docs/SMOKE.md` (sieben Punkte automatisiert über
-  `npm run smoke:gui`, der Rest Handarbeit). Der erste Lauf fand drei Fehler, die
-  194 grüne Unit-Tests nicht sehen konnten — alle vor diesem Release behoben.
-- Das GraphQL-Schema ist gemessen, nicht aus der Dokumentation abgeleitet
-  (`docs/LAB.md`) — samt der zwei Stellen, an denen Wiki.js' Laufzeitverhalten von
-  der eigenen Schema-Deklaration abweicht (`content` und `tags` sind bei
-  `pages.update` als optional deklariert, aber Pflicht).
+- Tested against a real Wiki.js 2.x instance and a running Obsidian, not just against mocks: `docs/SMOKE.md` (seven points automated through `npm run smoke:gui`, the rest by hand). The first run found three bugs that 194 green unit tests could not see — all fixed before this release.
+- The GraphQL schema is measured, not derived from the documentation (`docs/LAB.md`) — including the two places where Wiki.js' runtime behaviour deviates from its own schema declaration (`content` and `tags` are declared optional on `pages.update` but are mandatory).
