@@ -7,6 +7,8 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 ### Changed
 
 - The author in `manifest.json` is now "Johannes Kaindl"; Obsidian shows it in the plugin list.
+- The changelog is now written entirely in English.
+- Internal design notes moved out of the repository; the user documentation is unchanged.
 
 ## [0.3.0] — 2026-09-30
 
