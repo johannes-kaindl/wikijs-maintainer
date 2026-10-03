@@ -4,6 +4,10 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- The author in `manifest.json` is now "Johannes Kaindl" (was "Jay"); Obsidian shows it in the plugin list.
+
 ## [0.3.0] — 2026-09-30
 
 ### Changed

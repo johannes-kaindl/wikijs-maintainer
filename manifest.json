@@ -4,7 +4,7 @@
   "version": "0.3.0",
   "minAppVersion": "1.11.4",
   "description": "Publish and sync notes from a folder of your vault to a Wiki.js 2.x instance over GraphQL, with drift detection before every push.",
-  "author": "Jay",
+  "author": "Johannes Kaindl",
   "authorUrl": "https://github.com/johannes-kaindl",
   "isDesktopOnly": false
 }

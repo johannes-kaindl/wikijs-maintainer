@@ -5,7 +5,7 @@
   "description": "Obsidian plugin that syncs a vault folder to a Wiki.js 2.x instance via GraphQL.",
   "license": "AGPL-3.0-or-later",
   "author": {
-    "name": "Jay",
+    "name": "Johannes Kaindl",
     "url": "https://github.com/v6t2b9"
   },
   "main": "main.js",
