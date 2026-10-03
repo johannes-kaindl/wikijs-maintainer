@@ -184,7 +184,6 @@ For maintainers and contributors:
 
 - [`docs/SMOKE.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/SMOKE.md) — the checklist this plugin is verified against, eleven points of it automated (`npm run smoke:gui`)
 - [`docs/LAB.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/LAB.md) — the GraphQL schema **as measured against a running instance**, including the two places where it deviates from what the schema declares
-- [`docs/OPEN-POINTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/OPEN-POINTS.md) — known limits and deliberately deferred findings
 - [`AGENTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/AGENTS.md) — architecture and the decisions behind it
 - [`CONTRIBUTING.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/CONTRIBUTING.md) · [`SECURITY.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/SECURITY.md) · [`CHANGELOG.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/CHANGELOG.md)
 

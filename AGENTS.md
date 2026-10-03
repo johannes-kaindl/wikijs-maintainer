@@ -43,7 +43,7 @@ die Ansicht liest jetzt (wie die Commands seit dem 12.8.) die Fehlereinstufung d
 `occupied` und `stale-snapshot` sind keine Sackgassen mehr; Blockierungsgründe sind
 typmäßig erschöpfend (`assertNever`) statt in der zuletzt genannten Meldung zu landen —
 genau dieser Weg hatte einen falsch etikettierten Grund erzeugt. 235 Tests (vorher 225).
-Der Grund für den Zuschnitt steht in `docs/OPEN-POINTS.md` § „Erledigt in 0.1.2".
+Der Grund für den Zuschnitt steht im Vault-Cockpit unter `_Intern/OPEN-POINTS.md` § „Erledigt in 0.1.2".
 
 Bedienung und Grenzen: `README.md`; Prüfliste gegen echtes Obsidian + echte
 Instanz: `docs/SMOKE.md` (elf Punkte automatisch, seit 2026-08-18 auch die
@@ -69,7 +69,8 @@ ist derselbe `eslint-plugin-obsidianmd`, den der Store fährt.
 private Instanz), und der zugehörige Tag wurde dabei entfernt.
 Verbindliche Spec: `2026-08-09-wikijs-gesamt-design.md`, Abschnitte 2
 (Plugin-Architektur) und 3 (Sync-Semantik) — sie liegt in einem privaten Repo des
-Maintainers. Plan: `docs/superpowers/plans/2026-08-09-wikijs-maintainer-mvp.md`.
+Maintainers. Plan: Vault-Cockpit `_SDD/2026-08-09-wikijs-maintainer-mvp.md`.
+Specs und Pläne liegen im Vault-Cockpit unter `_SDD/` (CORE-META-14).
 
 Das Plugin ist Teil eines größeren Vorhabens; die zugehörige Wiki.js-Instanz und
 ihr Deployment leben in einem eigenen, nicht öffentlichen Repo.

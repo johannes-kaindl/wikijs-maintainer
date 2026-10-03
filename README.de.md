@@ -154,8 +154,6 @@ Vier Befehle, alle über die Befehlspalette:
   selbst — ein Snapshot ist die Grundlage jedes späteren Drift-Checks, ihn zu
   entfernen bleibt deine Entscheidung.
 
-Ausführlich: [`docs/OPEN-POINTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/OPEN-POINTS.md).
-
 ## Dokumentation
 
 Einstieg ist der [Doku-Index](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/README.md) (englisch):
@@ -167,7 +165,6 @@ Für Maintainer und Mitwirkende:
 
 - [`docs/SMOKE.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/SMOKE.md) — die Prüfliste, gegen die das Plugin verifiziert ist; elf Punkte davon automatisiert (`npm run smoke:gui`)
 - [`docs/LAB.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/LAB.md) — das GraphQL-Schema, **gegen eine laufende Instanz gemessen**, samt der zwei Stellen, an denen das Verhalten von der Deklaration abweicht
-- [`docs/OPEN-POINTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/docs/OPEN-POINTS.md) — bekannte Grenzen und bewusst zurückgestellte Befunde
 - [`AGENTS.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/AGENTS.md) — Architektur und die Entscheidungen dahinter
 - [`CONTRIBUTING.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/CONTRIBUTING.md) · [`SECURITY.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/SECURITY.md) · [`CHANGELOG.md`](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/CHANGELOG.md)
 

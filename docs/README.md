@@ -15,4 +15,4 @@ The [README](https://github.com/johannes-kaindl/wikijs-maintainer/blob/main/READ
 
 ---
 
-`SMOKE.md`, `LAB.md`, `OPEN-POINTS.md` and `superpowers/` hold maintainer material (the test checklist, the GraphQL schema as measured, deferred findings) and are not user documentation.
+`SMOKE.md` and `LAB.md` hold maintainer material (the test checklist, the GraphQL schema as measured) and are not user documentation.
