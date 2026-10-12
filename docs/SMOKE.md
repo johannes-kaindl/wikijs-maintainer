@@ -4,27 +4,7 @@
 > `npm run smoke:gui -- --vault <name>` fährt sie gegen ein laufendes Obsidian und
 > die konfigurierte Instanz.
 >
-> ⚠️ **Zuerst prüfen, wer sonst an Obsidian hängt.** Obsidian ist Single-Instance — ein
-> `quit` trifft die Instanz, an der möglicherweise eine andere Session arbeitet, und zerstört
-> deren Zustand. Der eigene Lauf ist danach sauber grün; der Schaden entsteht woanders und
-> fällt nicht auf.
->
-> ```bash
-> lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "läuft bereits — NICHT beenden"
-> ```
->
-> Hört der Port schon, dann **mitnutzen statt neu starten**: ein eigenes Fenster per
-> `vault-open` über IPC öffnen, dann `attachTo("workspace", port, vault)` — der Vault-Name
-> wählt, nicht die Reihenfolge. ⚠️ Die Port-Prüfung ersetzt die Frage nicht: sie zeigt aktive
-> CDP-Treiber, aber nicht, wer ein Fenster offen hält oder auf den Port wartet.
->
-> Erst wenn nichts läuft — oder nach Absprache mit dem, der es benutzt — gilt der eine
-> Handgriff, der Handarbeit bleibt: Obsidian mit offenem Debug-Port starten.
->
-> ```bash
-> osascript -e 'quit app "Obsidian"'
-> open -a Obsidian --args --remote-debugging-port=9222
-> ```
+> Der Smoke läuft in einer **Zweitinstanz** mit eigenem Profil und eigenem Port, nie in der regulären Instanz: `.asar` der regulären Instanz ins `--user-data-dir` kopieren, den Vault `wikijs-maintainer` (aus dem Fixture: `npm run build && npm run shots -- --setup`) und `"language":"en"` in dessen `obsidian.json` eintragen, mit `--remote-debugging-port=<port>` starten und den CDP-Lock für den Port halten. Vertrauensdialog und Restricted Mode erledigt der Treiber selbst. Aufruf: `npm run smoke:gui -- --port <port>`.
 >
 > Der Treiber legt ausschließlich Seiten unter `zz-smoke-` an und räumt sie samt
 > ihrer Snapshots wieder ab — auch nach einem Abbruch. Die übrigen Punkte unten

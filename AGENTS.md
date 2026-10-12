@@ -122,15 +122,7 @@ hier reichen URL + API-Key.
 - `npm test` — `check-no-abs-paths` + vitest.
 - `npm run lab:wikijs` — Sondier-Skript gegen eine laufende Wiki.js-Instanz
   (GraphQL-Schema-Gegenprobe; braucht `WIKIJS_URL` + `WIKIJS_TOKEN` in der Umgebung).
-- `npm run smoke:gui -- --vault <name>` — GUI-Smoke gegen ein **laufendes**
-  Obsidian und die echte Instanz (CORE-TEST-02 b). Voraussetzung ist der eine
-  Handgriff, der Handarbeit bleibt: Obsidian mit `--remote-debugging-port=9222`
-  neu starten — ⚠️ aber **erst prüfen, wer sonst dranhängt**
-  (`lsof -nP -iTCP:9222 -sTCP:LISTEN`): hört der Port schon, mitnutzen statt neu
-  starten, denn ein Quit zerstört den Zustand einer fremden Session, während der
-  eigene Lauf sauber grün bleibt. Der Treiber legt nur Seiten unter `zz-smoke-` an und räumt sie
-  samt Snapshots wieder ab. Details und Fallen: `docs/SMOKE.md`, Kopfkommentar
-  in `scripts/gui-smoke.ts`.
+- `npm run smoke:gui -- --port <port>` — GUI-Smoke in einer **Zweitinstanz** (eigenes `--user-data-dir`, eigener Port, Lock für den Port) gegen den Staging-Vault `wikijs-maintainer` und die echte Wiki.js-Instanz (CORE-TEST-02 b). `--port` ist Pflicht, es gibt keinen Standard (9222 ist die reguläre Instanz, die niemand anfasst). Der Treiber zählt in vier Zuständen: fehlt die Gegenstelle (Wiki-URL und API-Schlüssel), ist jeder Punkt „nichts gemessen“ und der Exit 1. Er legt nur Seiten unter `zz-smoke-` an und räumt sie samt Snapshots wieder ab. Details und Fallen: `docs/SMOKE.md`, Kopfkommentar in `scripts/gui-smoke.ts`.
 - `npm run deploy` — Build ins Vault kopieren (`OBSIDIAN_PLUGIN_DIR` setzen).
   **Danach lädt Obsidian das Plugin nicht von selbst neu** — der Smoke-Treiber
   tut das zu Beginn selbst, von Hand geht es über disable/enable.

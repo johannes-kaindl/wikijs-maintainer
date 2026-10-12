@@ -35,61 +35,21 @@ Geprüft wird der Vertrag automatisch: `readme_lint.py` (Workspace-Werkzeug) gle
 
 ## Reproduzieren
 
-⚠️ **Vor dem Quit koordinieren — Obsidian ist geteilte Infrastruktur.** Dieses Rezept
-braucht den frischen Start (ein Bild pro Start, jeder Lauf hinterlässt Zustand); Mitnutzen ist
-hier keine Alternative. Aber Obsidian ist Single-Instance: der Quit trifft die Instanz, an der
-möglicherweise eine andere Session arbeitet, und zerstört deren Zustand. Der eigene Lauf ist
-danach sauber grün; der Schaden fällt nicht auf.
+Aufgenommen wird in einer **Zweitinstanz** mit eigenem Profil und eigenem Port, nie in der regulären Instanz: `.asar` der regulären Instanz ins `--user-data-dir` kopieren, den Aufnahme-Vault und `"language":"en"` in dessen `obsidian.json` eintragen, mit `--remote-debugging-port=<port>` starten, den CDP-Lock für den Port halten. Vertrauensdialog und Restricted Mode erledigt der Treiber.
 
 ```bash
-lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "belegt — erst fragen, wem"
+npm run build && npm run shots -- --setup                # Vault aus dem Fixture bauen
+
+npm run shots -- --port <port>                           # alles aufnehmen
+npm run shots -- --port <port> --only overview.png       # ein Bild nachziehen
+npm run shots -- --list                                  # Vertrag anzeigen
+npm run shots:check                                      # Standard-Konformität prüfen
 ```
-
-Hört der Port, hängt jemand dran: **erst fragen, dann quitten.** ⚠️ Und die Prüfung ersetzt die
-Frage nicht — sie zeigt aktive CDP-Treiber, aber nicht, wer ein Fenster offen hält oder auf den
-Port wartet; am 2026-08-30 hätte sie einen zwei Stunden alten Reindex nicht gezeigt, denn der
-hing an Ollama, nicht am Port.
-
-```bash
-export STAGING_VAULTS_DIR="$HOME/StagingVaults"   # einmalig
-npm run build && npm run shots -- --setup          # Vault aus dem Fixture bauen
-
-osascript -e 'quit app "Obsidian"'                  # Handarbeit: Debug-Port
-open -a Obsidian --args --remote-debugging-port=9222
-# ... den Aufnahme-Vault öffnen und einmalig als vertrauenswürdig markieren
-
-npm run shots                                       # alles aufnehmen
-npm run shots -- --only overview.png                # ein Bild nachziehen
-npm run shots -- --list                             # Vertrag anzeigen
-npm run shots:check                                 # Standard-Konformität prüfen
-```
-
-**Obsidians Oberfläche muss auf Englisch stehen** — `README.md` ist die kanonische Fassung
-(CORE-META-09). Die Sprache ist app-weit, nicht vault-weit (`obsidian.json.language` UND
-zusätzlich `localStorage["language"]`, beide vor dem Lauf setzen, dann Obsidian neu
-starten — die geladene Sprache steht in `document.documentElement.lang`, nicht in der
-gespeicherten Einstellung). Nach der Aufnahme zurückstellen, sonst startet der
-Arbeits-Vault des Maintainers in der Aufnahmesprache. Der Treiber prüft das selbst nicht
-— das Zurückstellen betrifft alle offenen Vaults, nicht nur den Aufnahme-Vault, und gehört
-deshalb bewusst in Menschenhand.
-
-**Braucht eine erreichbare Wiki.js-Instanz** — dieselbe, gegen die `npm run smoke:gui`
-läuft. Wiki-URL und API-Schlüssel kommen aus der Umgebung (`WIKIJS_URL`, `WIKIJS_TOKEN` —
-dieselbe Konvention wie `npm run lab:wikijs`) und werden zur Laufzeit ins Plugin
-eingetragen (`setPluginSetting`, `data.json` überlebt `--setup` nicht, keine Geheimnisse
-im Fixture). Alle Seiten landen unter `zz-shots/…`, der Treiber räumt sie am Ende des
-Laufs wieder ab — dieselbe Aufräum-Zusage wie beim GUI-Smoke (dessen `zz-smoke-`-Präfix),
-nur mit eigenem Ordner, damit ein gleichzeitig laufender Smoke sich nicht in die Quere
-kommt.
-
-Beispieldaten sind generisch und englisch (Style Guide, Deploy Runbook, Network Overview,
-Access Policy) — keine echten Namen, keine echte Infrastruktur.
 
 ## Was der Lauf voraussetzt
 
 - Ein gebautes Plugin (`npm run build`) — der Vault zeigt den Stand, der gerade geändert
   wird, nicht den letzten Release.
-- Obsidian mit `--remote-debugging-port=9222`, den Aufnahme-Vault geöffnet und einmalig
-  bestätigt (Trust-Dialog).
+- Eine Zweitinstanz mit `--remote-debugging-port=<port>` und dem Aufnahme-Vault (der Treiber bestätigt den Trust-Dialog selbst).
 - Netzwerkzugriff auf die konfigurierte Wiki.js-Instanz für `overview.png`,
   `conflict-modal.png` und `removal-modal.png` — nur `settings.png` kommt ohne aus.
