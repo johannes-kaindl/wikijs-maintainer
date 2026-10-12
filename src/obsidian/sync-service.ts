@@ -11,6 +11,15 @@ import type { SlugCollision } from "../core/paths";
 import { wikiPathToVaultPath } from "../core/paths";
 import type { ConflictChoice } from "./conflict-modal";
 import type { RemovalChoice } from "./removal-modal";
+import { parseFrontmatter } from "../vendor/kit/frontmatter";
+
+/** Frontmatter-Block samt der Leerzeilen davor, die der Push vom Body abschneidet
+ *  (`extractPageMeta`), unveraendert aus der lokalen Datei; leer ohne Frontmatter. */
+function localFrontmatterPrefix(raw: string | undefined): string {
+  if (raw === undefined) return "";
+  const bodyTrimmed = parseFrontmatter(raw).body.replace(/^\n+/, "");
+  return raw.slice(0, raw.length - bodyTrimmed.length);
+}
 
 export type PushOutcome =
   | { kind: "created" | "updated" }
@@ -234,10 +243,16 @@ export class SyncService {
 
     const page = await this.deps.client.fetchPage(pageId);
     const vaultPath = entry.local?.vaultPath ?? wikiPathToVaultPath(entry.wikiPath, this.deps.syncRoot(), page.title);
-    await this.deps.writeNote(vaultPath, page.content);
+    // Das Wiki kennt das lokale Frontmatter nicht (der Push schickt nur den Body): wuerde die
+    // Datei mit `page.content` ueberschrieben, gingen `seitentyp`, `aliases`, `tags` usw. verloren.
+    // Der lokale Block bleibt deshalb unveraendert stehen, nur der Body folgt dem Wiki. `raw` ist
+    // die zusammengesetzte Datei (sonst gaelte sie beim naechsten Plan als lokal geaendert),
+    // `pushed` der Wiki-Inhalt.
+    const written = localFrontmatterPrefix(entry.local?.raw) + page.content;
+    await this.deps.writeNote(vaultPath, written);
     await this.deps.store.save({
       version: 1, wikiPath: entry.wikiPath, pageId,
-      raw: page.content, pushed: page.content, remoteUpdatedAt: page.updatedAt,
+      raw: written, pushed: page.content, remoteUpdatedAt: page.updatedAt,
     });
     return { kind: "written", vaultPath };
   }

@@ -4,6 +4,10 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **A pull no longer deletes the frontmatter of the local note.** Pulling a page changed on the wiki replaced the whole file with the wiki text, so `seitentyp`, `aliases`, `tags` and every other frontmatter field were lost. The local frontmatter block now stays untouched and only the text below it follows the wiki; the page is not reported as locally changed afterwards.
+
 ## [0.3.1] — 2026-10-03
 
 ### Changed

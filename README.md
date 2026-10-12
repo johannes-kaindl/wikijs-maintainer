@@ -97,7 +97,7 @@ Four commands, all from the command palette:
   page instead of stopping the batch; failures are collected and reported
   in a summary Notice at the end.
 - **Pull current note from wiki** — pulls the active note's content from
-  the wiki when it changed remotely.
+  the wiki when it changed remotely. A pull replaces only the text below the frontmatter: the note's frontmatter block (`title`, `tags`, `seitentyp`, `aliases`, …) stays exactly as it is, because the wiki does not hold it.
 
 ## How it works
 

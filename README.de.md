@@ -92,7 +92,7 @@ Vier Befehle, alle über die Befehlspalette:
 - **Alle Änderungen pushen** — fährt den vollen Plan. Eine fehlgeschlagene Seite
   beendet den Lauf nicht; die Fehler stehen mit Ursache in der Abschlussmeldung.
 - **Aktuelle Notiz vom Wiki holen** — zieht den Wiki-Stand in den Vault, wenn die
-  Seite dort geändert wurde.
+  Seite dort geändert wurde. Ein Pull ersetzt nur den Text unter dem Frontmatter: der Frontmatter-Block der Notiz (`title`, `tags`, `seitentyp`, `aliases`, …) bleibt unverändert, weil das Wiki ihn nicht kennt.
 
 ## Funktionsweise
 

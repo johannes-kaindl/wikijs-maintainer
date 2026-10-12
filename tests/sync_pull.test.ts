@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { SyncService } from "../src/obsidian/sync-service";
-import type { SyncEntry } from "../src/core/sync-plan";
+import { planSync, type SyncEntry } from "../src/core/sync-plan";
 
 function service() {
   const client = {
@@ -108,5 +108,58 @@ describe("SyncService.pullOne", () => {
     });
     expect(out).toEqual({ kind: "skipped" });
     expect(store.save).not.toHaveBeenCalled();
+  });
+
+  describe("lokales Frontmatter bleibt beim Pull erhalten", () => {
+    const LOCAL = "---\ntitle: DNS Setup\nseitentyp: runbook\naliases: [dns, namen]\ntags: [netz, dns]\n---\n\nalter Text\n";
+    const entryMitFrontmatter = (): SyncEntry => ({
+      wikiPath: "netzwerk/dns",
+      state: "remote-changed",
+      pageId: 5,
+      local: { vaultPath: "_published/Netzwerk/DNS.md", wikiPath: "netzwerk/dns", raw: LOCAL, transformed: "alter Text\n" },
+      snapshot: { version: 1, wikiPath: "netzwerk/dns", pageId: 5, raw: LOCAL, pushed: "alter Text\n", remoteUpdatedAt: "T1" },
+      remote: { id: 5, path: "netzwerk/dns", title: "DNS Setup", updatedAt: "T9" },
+    });
+
+    it("setzt den lokalen Frontmatter-Block samt Leerzeile unverändert vor den Wiki-Inhalt (Fremdfelder und tags bleiben)", async () => {
+      const { svc, writeNote } = service();
+      await svc.pullOne(entryMitFrontmatter());
+      const expected = "---\ntitle: DNS Setup\nseitentyp: runbook\naliases: [dns, namen]\ntags: [netz, dns]\n---\n\nwiki-text";
+      expect(writeNote).toHaveBeenCalledWith("_published/Netzwerk/DNS.md", expected);
+    });
+
+    it("speichert im Snapshot die zusammengesetzte Datei als raw und den Wiki-Inhalt als pushed", async () => {
+      const { svc, store } = service();
+      await svc.pullOne(entryMitFrontmatter());
+      expect(store.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          raw: "---\ntitle: DNS Setup\nseitentyp: runbook\naliases: [dns, namen]\ntags: [netz, dns]\n---\n\nwiki-text",
+          pushed: "wiki-text",
+          remoteUpdatedAt: "T9",
+        }),
+      );
+    });
+
+    it("danach plant planSync unchanged — der Pull gilt nicht als lokale Änderung", async () => {
+      const { svc, store, writeNote } = service();
+      await svc.pullOne(entryMitFrontmatter());
+      const saved = (store.save.mock.calls[0] as unknown as [{ raw: string }])[0];
+      const written = (writeNote.mock.calls[0] as unknown as [string, string])[1];
+      expect(written).toBe(saved.raw);
+      const plan = planSync({
+        locals: [{ vaultPath: "_published/Netzwerk/DNS.md", wikiPath: "netzwerk/dns", raw: written, transformed: "wiki-text" }],
+        snapshots: [{ version: 1, wikiPath: "netzwerk/dns", pageId: 5, raw: saved.raw, pushed: "wiki-text", remoteUpdatedAt: "T9" }],
+        remotes: [{ id: 5, path: "netzwerk/dns", title: "DNS Setup", updatedAt: "T9" }],
+      });
+      expect(plan[0]?.state).toBe("unchanged");
+    });
+
+    it("lässt eine lokale Datei ohne Frontmatter wie bisher roh durch den Wiki-Inhalt ersetzen", async () => {
+      const { svc, writeNote } = service();
+      const e = entryMitFrontmatter();
+      e.local = { vaultPath: "_published/Netzwerk/DNS.md", wikiPath: "netzwerk/dns", raw: "alt", transformed: "alt" };
+      await svc.pullOne(e);
+      expect(writeNote).toHaveBeenCalledWith("_published/Netzwerk/DNS.md", "wiki-text");
+    });
   });
 });
