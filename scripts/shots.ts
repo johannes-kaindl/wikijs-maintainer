@@ -591,6 +591,16 @@ async function main(): Promise<void> {
         console.log(`  ! Einstellung ${key} konnte nicht zurückgesetzt werden — von Hand prüfen`);
       });
     }
+    // Der Schlüsselbund ist je Profil und Vault getrennt (Dach `tools/obsidian-cdp/README.md`
+    // § Schlüsselbund, gemessen 2026-10-12): ein gesetzter Platzhalter bleibt sonst im
+    // Wegwerf-Profil stehen. War vorher kein Schlüssel da, wird der Eintrag ganz entfernt.
+    if (vorher.apiKey === "") {
+      await cdp
+        .evaluate(`app.secretStorage?.deleteSecret?.("wikijs-maintainer-api-key"); return true;`)
+        .catch(() => {
+          console.log("  ! Schlüsselbund-Eintrag konnte nicht entfernt werden — von Hand prüfen");
+        });
+    }
     cdp.close();
   }
 
