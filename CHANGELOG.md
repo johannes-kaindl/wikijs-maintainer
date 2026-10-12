@@ -4,6 +4,10 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- Kit vendoring raised from `obsidian-kit` 0.45.1 to 0.57.0 and from `code-kit` 0.8.0 to 0.24.0 (`secrets` now comes from `code-kit`). Nothing changes for users: the bundled plugin file is byte-identical before and after; the gate and 253 tests ran green before, 257 after (four of them cover the frontmatter fix below).
+
 ### Fixed
 
 - **A pull no longer deletes the frontmatter of the local note.** Pulling a page changed on the wiki replaced the whole file with the wiki text, so `seitentyp`, `aliases`, `tags` and every other frontmatter field were lost. The local frontmatter block now stays untouched and only the text below it follows the wiki; the page is not reported as locally changed afterwards.
