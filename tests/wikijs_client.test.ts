@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requestUrl } from "obsidian";
 import type { MockFn } from "./vendor/kit/obsidian-mock";
+import { installWindowTimers } from "./vendor/kit/window-timers";
 import { WikiClient, WikiError } from "../src/wikijs/client";
 
-// Testumgebung ist "node" (vitest.config.ts) — es gibt kein globales `window`.
-// client.ts nutzt window als Timer-Port fuer withTimeout; ohne diesen Stub wirft
-// bereits das Lesen des Bezeichners `window` eine ReferenceError, bevor der
-// eigentliche Timeout ueberhaupt zum Tragen kaeme.
-vi.stubGlobal("window", { setTimeout, clearTimeout });
+// Testumgebung ist "node" (vitest.config.ts) — es gibt kein globales `window`, `client.ts` nutzt
+// es aber als Timer-Port fuer `withTimeout`. Der Kit-Shim stellt es bereit (delegiert je Aufruf an
+// `globalThis`, greift also auch unter `vi.useFakeTimers()`).
+installWindowTimers();
 
 const OPTS = { baseUrl: "https://wiki.example.org/", token: "K", locale: "de", timeoutMs: 5000 };
 
