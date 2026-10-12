@@ -673,14 +673,14 @@ async function main(): Promise<void> {
       findRow(`${PREFIX}-occupied-own`),
       8000,
     );
-    const ownAdoptButton = ownRow?.buttons.some((b) => /übernehmen/i.test(b)) ?? false;
+    const ownAdoptButton = ownRow?.buttons.some((b) => /übernehmen|adopt/i.test(b)) ?? false;
     let ownAdoptNotice = "";
     if (ownAdoptButton) {
       await cdp.evaluate(`
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-occupied-own`)}));
         document.querySelectorAll(".notice").forEach((n) => n.remove());
-        [...row.querySelectorAll("button")].find((b) => /übernehmen/i.test(b.textContent || "")).click();
+        [...row.querySelectorAll("button")].find((b) => /übernehmen|adopt/i.test(b.textContent || "")).click();
         return true;
       `);
       ownAdoptNotice = (await pollUntil<string>(cdp, `const n = document.querySelector(".notice"); return n ? n.textContent : null;`, 10000)) ?? "KEINE MELDUNG";
@@ -689,7 +689,7 @@ async function main(): Promise<void> {
     const ownRowAfter = await cdp.evaluate<{ desc: string; buttons: string[] } | null>(findRow(`${PREFIX}-occupied-own`));
     record(
       "9. Belegter Slug, eigene Seite: Übernehmen räumt die Zeile ab (SMOKE 12)",
-      ownRow !== null && /belegt/i.test(ownRow.desc) && ownAdoptButton && /übernommen/i.test(ownAdoptNotice) && ownRowAfter === null,
+      ownRow !== null && /belegt|occupied/i.test(ownRow.desc) && ownAdoptButton && /übernommen|adopted/i.test(ownAdoptNotice) && ownRowAfter === null,
       ownRow === null
         ? "Zeile nicht gefunden"
         : !ownAdoptButton
@@ -715,14 +715,14 @@ async function main(): Promise<void> {
       findRow(`${PREFIX}-occupied-foreign`),
       8000,
     );
-    const foreignAdoptButton = foreignRow?.buttons.some((b) => /übernehmen/i.test(b)) ?? false;
+    const foreignAdoptButton = foreignRow?.buttons.some((b) => /übernehmen|adopt/i.test(b)) ?? false;
     let foreignAdoptNotice = "";
     if (foreignAdoptButton) {
       await cdp.evaluate(`
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-occupied-foreign`)}));
         document.querySelectorAll(".notice").forEach((n) => n.remove());
-        [...row.querySelectorAll("button")].find((b) => /übernehmen/i.test(b.textContent || "")).click();
+        [...row.querySelectorAll("button")].find((b) => /übernehmen|adopt/i.test(b.textContent || "")).click();
         return true;
       `);
       foreignAdoptNotice = (await pollUntil<string>(cdp, `const n = document.querySelector(".notice"); return n ? n.textContent : null;`, 10000)) ?? "KEINE MELDUNG";
@@ -733,12 +733,12 @@ async function main(): Promise<void> {
     record(
       "10. Belegter Slug, fremde Seite: Übernehmen bleibt aus, Wiki unangetastet (SMOKE 13)",
       foreignRow !== null &&
-        /belegt/i.test(foreignRow.desc) &&
+        /belegt|occupied/i.test(foreignRow.desc) &&
         foreignAdoptButton &&
-        /nicht übernommen/i.test(foreignAdoptNotice) &&
+        /nicht übernommen|not adopted/i.test(foreignAdoptNotice) &&
         foreignContentAfter.includes("Fremd geändert") &&
         foreignRowAfter !== null &&
-        /belegt/i.test(foreignRowAfter.desc),
+        /belegt|occupied/i.test(foreignRowAfter.desc),
       foreignRow === null
         ? "Zeile nicht gefunden"
         : !foreignAdoptButton
@@ -763,14 +763,14 @@ async function main(): Promise<void> {
     `);
     await cdp.evaluate(refreshView);
     const staleRow = await pollUntil<{ desc: string; buttons: string[] }>(cdp, findRow(`${PREFIX}-stale`), 8000);
-    const staleForgetButton = staleRow?.buttons.some((b) => /verwerfen/i.test(b)) ?? false;
+    const staleForgetButton = staleRow?.buttons.some((b) => /verwerfen|discard/i.test(b)) ?? false;
     let staleForgetNotice = "";
     if (staleForgetButton) {
       await cdp.evaluate(`
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-stale`)}));
         document.querySelectorAll(".notice").forEach((n) => n.remove());
-        [...row.querySelectorAll("button")].find((b) => /verwerfen/i.test(b.textContent || "")).click();
+        [...row.querySelectorAll("button")].find((b) => /verwerfen|discard/i.test(b.textContent || "")).click();
         return true;
       `);
       staleForgetNotice = (await pollUntil<string>(cdp, `const n = document.querySelector(".notice"); return n ? n.textContent : null;`, 10000)) ?? "KEINE MELDUNG";
@@ -780,9 +780,9 @@ async function main(): Promise<void> {
     record(
       "11. Verwaister Snapshot: Verwerfen räumt die Zeile ab (SMOKE 14)",
       staleRow !== null &&
-        /veraltet/i.test(staleRow.desc) &&
+        /veraltet|stale/i.test(staleRow.desc) &&
         staleForgetButton &&
-        /verworfen/i.test(staleForgetNotice) &&
+        /verworfen|discarded/i.test(staleForgetNotice) &&
         staleRowAfter === null,
       staleRow === null
         ? "Zeile nicht gefunden"
