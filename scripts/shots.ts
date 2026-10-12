@@ -11,34 +11,26 @@
  *
  * ## Ablauf
  *
- * ⚠️ **Vor dem Quit koordinieren — Obsidian ist geteilte Infrastruktur.** Dieses Rezept
- * braucht den frischen Start (ein Bild pro Start, jeder Lauf hinterlaesst Zustand); Mitnutzen ist
- * hier keine Alternative. Aber Obsidian ist Single-Instance: der Quit trifft die Instanz, an der
- * moeglicherweise eine andere Session arbeitet, und zerstoert deren Zustand. Der eigene Lauf ist
- * danach sauber gruen; der Schaden faellt nicht auf.
+ * Aufgenommen wird in einer **Zweitinstanz** mit eigenem Profil und eigenem Port, nie in der
+ * regulären Instanz (Dach-AGENTS § Staging-Vaults, Entscheidung 2026-09-26). `--port` ist
+ * Pflicht, es gibt keinen Standardport; den CDP-Lock für den eigenen Port halten
+ * (`python3 ~/.claude/hooks/obsidian-cdp-lock.py acquire --label wikijs-maintainer --intent … --exclusive focus --port <port>`).
+ * Profil: aktuelle `.asar` der regulären Instanz ins `--user-data-dir` kopieren, den Aufnahme-Vault
+ * und `"language":"en"` in dessen `obsidian.json` eintragen, mit
+ * `--remote-debugging-port=<port>` starten, dann `bereiteInstanzVor` (Vertrauensdialog,
+ * Restricted Mode) — die Aufnahme ruft sie selbst.
  *
  * ```bash
- * lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "belegt — erst fragen, wem"
- * ```
- *
- * Hoert der Port, haengt jemand dran: **erst fragen, dann quitten.** ⚠️ Und die Pruefung ersetzt die
- * Frage nicht — sie zeigt aktive CDP-Treiber, aber nicht, wer ein Fenster offen haelt oder auf den
- * Port wartet; am 2026-08-30 haette sie einen zwei Stunden alten Reindex nicht gezeigt, denn der
- * hing an Ollama, nicht am Port.
- *
- * ```bash
- * export STAGING_VAULTS_DIR="$HOME/StagingVaults"   # einmalig
  * export WIKIJS_URL="https://…" WIKIJS_TOKEN="…"     # dieselbe Instanz wie smoke:gui
  * npm run build && npm run shots -- --setup          # Vault aus dem Fixture bauen
  *
- * osascript -e 'quit app "Obsidian"'                 # Handarbeit: Debug-Port
- * open -a Obsidian --args --remote-debugging-port=9222
- * #   ... den Aufnahme-Vault oeffnen und einmalig als vertrauenswuerdig markieren
- *
- * npm run shots                                      # alles aufnehmen
- * npm run shots -- --only overview.png                   # ein Bild nachziehen
- * npm run shots -- --list                             # Vertrag anzeigen
+ * npm run shots -- --port <port>                     # alles aufnehmen
+ * npm run shots -- --port <port> --only overview.png # ein Bild nachziehen
+ * npm run shots -- --list                            # Vertrag anzeigen
  * ```
+ *
+ * Wiki-URL und API-Schlüssel der Plugin-Einstellungen werden für den Lauf überschrieben und im
+ * `finally` auf den Vorzustand zurückgesetzt; der Platzhalter für `settings.png` bleibt nie stehen.
  *
  * ⚠️ Schreibt in die konfigurierte Wiki-Instanz. Legt ausschliesslich Seiten unter
  * `zz-shots/…` an und raeumt sie im `finally` wieder ab — auch nach einem Abbruch.
@@ -58,6 +50,7 @@ import { argv, cwd, env, exit } from "node:process";
 
 import {
   attachTo,
+  bereiteInstanzVor,
   Cdp,
   closeExtraLeaves,
   openExisting,
@@ -315,17 +308,9 @@ async function main(): Promise<void> {
       console.log(`  ${zeile}`);
     }
     console.log(
-      "\n⚠️  Lief Obsidian waehrend dieses Setups, muss es JETZT neu starten. --setup hat\n" +
-      "   Notizen, Layout und Plugin-Einstellungen ersetzt.\n" +
-      "\n⚠️  Erst prüfen, ob schon ein Obsidian läuft — ein Quit zerstört den Zustand\n" +
-      "    einer fremden Session, und der eigene Lauf ist danach trotzdem grün:\n" +
-      "      lsof -nP -iTCP:9222 -sTCP:LISTEN\n" +
-      "    Hört der Port, hängt jemand dran: erst fragen, dann quitten.\n" +
-      "\nObsidian mit offenem Debug-Port starten und diesen Vault oeffnen:\n" +
-      "  osascript -e 'quit app \"Obsidian\"'\n" +
-      "  open -a Obsidian --args --remote-debugging-port=9222\n" +
-      "Beim ersten Mal fragt Obsidian, ob es dem Vault-Autor vertraut — bestaetigen,\n" +
-      "sonst laeuft das Plugin nicht.",
+      "\nDer Vault ist neu gebaut (Notizen, Layout, Plugin-Einstellungen ersetzt). Läuft darauf\n" +
+      "schon eine Zweitinstanz, startet man sie neu. Aufgenommen wird nur in einer Zweitinstanz\n" +
+      "mit eigenem Profil und Port: `npm run shots -- --port <port>` (Kopfkommentar).",
     );
     return;
   }
@@ -339,7 +324,14 @@ async function main(): Promise<void> {
     );
   }
 
-  const port = Number(flag("--port") ?? env.SHOTS_PORT ?? 9222);
+  const portRaw = flag("--port");
+  if (!portRaw || !Number.isInteger(Number(portRaw))) {
+    throw new Error(
+      "--port <Port> ist Pflicht (Zweitinstanz mit eigenem Profil und Port, Kopfkommentar). " +
+      "Es gibt keinen Standardport: 9222 ist die reguläre Instanz.",
+    );
+  }
+  const port = Number(portRaw);
   const nur = flag("--only");
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
@@ -347,14 +339,26 @@ async function main(): Promise<void> {
   if (!cdp) {
     throw new Error(
       `Kein Obsidian-Fenster mit dem Vault "${REPO_NAME}" auf Port ${port}.\n` +
-      `Den Aufnahme-Vault oeffnen: open -a Obsidian "$STAGING_VAULTS_DIR/${REPO_NAME}"`,
+      `Zweitinstanz starten (Kopfkommentar): eigenes --user-data-dir, Vault "${REPO_NAME}" aus $STAGING_VAULTS_DIR in dessen obsidian.json.`,
     );
   }
   console.log(`Verbunden auf Port ${port}.\n`);
+  const vorbereitet = await bereiteInstanzVor(cdp, { pluginIds: [PLUGIN_ID], nurVault: REPO_NAME, sprache: "en" });
+  console.log(`Instanz: ${vorbereitet.hinweis}\n`);
+  if (vorbereitet.plugins[PLUGIN_ID] === "fehlt") {
+    throw new Error(`Plugin ${PLUGIN_ID} nicht geladen (${vorbereitet.hinweis}) — erst bauen: npm run build && npm run shots -- --setup`);
+  }
   await requireVisible(cdp);
   await setWindowSize(cdp, FENSTER_BREITE, FENSTER_HOEHE);
   await setAppConfig(cdp, "readableLineLength", false);
   await setAppConfig(cdp, "showInlineTitle", false);
+
+  // Vorzustand merken: der Lauf überschreibt Wiki-URL und Schlüssel (echte Werte, dann Platzhalter)
+  // und stellt sie im `finally` wieder her. Der Schlüssel bleibt im Node-Prozess, nie in der Ausgabe.
+  const vorher = await cdp.evaluate<Record<string, unknown>>(`
+    const s = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings;
+    return { baseUrl: s.baseUrl ?? "", apiKey: s.apiKey ?? "", syncRoot: s.syncRoot ?? "_published", locale: s.locale ?? "en" };
+  `);
 
   // data.json ueberlebt --setup nicht — Wiki-URL und Schlüssel muessen jeden Lauf neu
   // gesetzt werden. Der Wert wandert nur ueber setPluginSetting, nie ueber console.log.
@@ -581,6 +585,11 @@ async function main(): Promise<void> {
     const purgedSnapshots = await purgeSnapshots(cdp).catch(() => 0);
     if (purged > 0 || purgedSnapshots > 0) {
       console.log(`\nAufgeraeumt: ${purged} Wiki-Seite(n) + ${purgedSnapshots} Snapshot(s) geloescht.`);
+    }
+    for (const [key, value] of Object.entries(vorher)) {
+      await setPluginSetting(cdp, PLUGIN_ID, key, value).catch(() => {
+        console.log(`  ! Einstellung ${key} konnte nicht zurückgesetzt werden — von Hand prüfen`);
+      });
     }
     cdp.close();
   }
