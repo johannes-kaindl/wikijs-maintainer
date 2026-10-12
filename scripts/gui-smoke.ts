@@ -14,35 +14,22 @@
  *
  * ## Voraussetzung
  *
- * ⚠️ **Zuerst prüfen, wer sonst an Obsidian hängt.** Obsidian ist Single-Instance — ein
- * `quit` trifft die Instanz, an der möglicherweise eine andere Session arbeitet, und zerstört
- * deren Zustand. Der eigene Lauf ist danach sauber grün; der Schaden entsteht woanders und
- * fällt nicht auf.
+ * Der Smoke läuft in einer **Zweitinstanz** mit eigenem Profil und eigenem Port, nie in der
+ * regulären Instanz (Dach-AGENTS § Staging-Vaults); `--port` ist Pflicht, es gibt keinen Standard.
+ * Der Vault `wikijs-maintainer` unter `$STAGING_VAULTS_DIR` kommt aus dem Fixture
+ * (`npm run build && npm run shots -- --setup`). Profil: die aktuelle `.asar` der regulären
+ * Instanz ins `--user-data-dir` kopieren, Vault und `"language":"en"` in dessen `obsidian.json`
+ * eintragen, mit `--remote-debugging-port=<port>` starten. Vertrauensdialog und Restricted Mode
+ * erledigt `bereiteInstanzVor` selbst. Den CDP-Lock für den eigenen Port halten
+ * (`python3 ~/.claude/hooks/obsidian-cdp-lock.py acquire --label wikijs-maintainer --intent … --exclusive focus --port <port>`).
+ *
+ * Das Smoke-Ziel ist eine **echte Wiki.js-Instanz**: Wiki-URL und API-Schlüssel stehen in den
+ * Plugin-Einstellungen des Vaults. Fehlen sie, ist jeder Prüfpunkt „nichts gemessen“ (Exit 1),
+ * nicht grün.
  *
  * ```bash
- * lsof -nP -iTCP:9222 -sTCP:LISTEN >/dev/null && echo "läuft bereits — NICHT beenden"
- * ```
- *
- * Hört der Port schon, dann **mitnutzen statt neu starten**: ein eigenes Fenster per
- * `vault-open` über IPC öffnen, dann `attachTo("workspace", port, vault)` — der Vault-Name
- * wählt, nicht die Reihenfolge. ⚠️ Die Port-Prüfung ersetzt die Frage nicht: sie zeigt aktive
- * CDP-Treiber, aber nicht, wer ein Fenster offen hält oder auf den Port wartet.
- *
- * Erst wenn nichts läuft — oder nach Absprache mit dem, der es benutzt — gilt das Rezept unten.
- *
- * Obsidian muss mit offenem Debug-Port laufen (der einzige Handgriff, der Handarbeit
- * bleibt — die App muss dafür neu gestartet werden):
- *
- * ```bash
- * osascript -e 'quit app "Obsidian"'
- * open -a Obsidian --args --remote-debugging-port=9222
- * ```
- *
- * Dann, mit deployter Plugin-Version:
- *
- * ```bash
- * npm run smoke:gui -- --vault 70_CodingTraces
- * npm run smoke:gui -- --vault 70_CodingTraces --keep   # Testnotizen stehen lassen
+ * npm run smoke:gui -- --port <port>                # Vault-Name: wikijs-maintainer
+ * npm run smoke:gui -- --port <port> --keep         # Testnotizen stehen lassen
  * ```
  *
  * ⚠️ Der Treiber schreibt in die konfigurierte Wiki-Instanz. Er legt ausschließlich
@@ -59,7 +46,8 @@ import { execFileSync } from "node:child_process";
 // importiert, nicht vendored: sie ist plugin-neutral und lief zuvor byte-identisch in
 // sechs Repos. Fehlt das Dach (fremder Checkout), bricht esbuild beim Auflösen ab — das
 // ist die gewollte Meldung. Was ihr fehlt, wird DORT ergänzt, nicht hier nachgebaut.
-import { Cdp, attachTo, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
+import { Cdp, attachTo, bereiteInstanzVor, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
+import { createBilanz, parseArgs, runDriver } from "../../tools/obsidian-cdp/bilanz.js";
 
 const PLUGIN_ID = "wikijs-maintainer";
 const STATUS_VIEW = "wikijs-status";
@@ -71,30 +59,30 @@ const PREFIX = "zz-smoke";
 
 // --- Prüfpunkte -------------------------------------------------------------
 
-interface Check {
-  name: string;
-  passed: boolean;
-  detail: string;
-}
+/** Soll-Liste (Nenner, CORE-TEST-19): ein Punkt, der nie aufgezeichnet wird, zählt als „nichts gemessen“. */
+const PUNKTE = [
+  "00. Plugin geladen, Wiki-URL und API-Schlüssel sind in den Plugin-Einstellungen gesetzt",
+  "0a. apiKey trägt keinen liegen gebliebenen Test-Wert aus einem abgebrochenen Vorlauf",
+  "0b. API-Schlüssel ist header-tauglich (Latin-1/ByteString)",
+  "1. Push legt die Seite im Wiki an",
+  "2. Zweiter Push aktualisiert, ohne zu doppeln",
+  "3. Depublizieren macht die Seite unsichtbar (Historie bleibt)",
+  "4. Slug-Kollision: Warnblock da, Push für die Zeile gesperrt",
+  "5. Mehrdeutiger Name: Hinweisblock da, Push bleibt möglich",
+  "6. Falscher Schlüssel: Meldung benennt die Authentifizierung",
+  "9. Belegter Slug, eigene Seite: Übernehmen räumt die Zeile ab (SMOKE 12)",
+  "10. Belegter Slug, fremde Seite: Übernehmen bleibt aus, Wiki unangetastet (SMOKE 13)",
+  "11. Verwaister Snapshot: Verwerfen räumt die Zeile ab (SMOKE 14)",
+  "12. Kein stiller Abbruch bei extern gelöschter Notiz (SMOKE 15)",
+  "13. Keine rohen i18n-Schlüssel in Commands und Status-Ansicht",
+] as const;
 
-const results: Check[] = [];
+const bilanz = createBilanz({ punkte: PUNKTE });
+const { record } = bilanz;
 
-function record(name: string, passed: boolean, detail: string): void {
-  results.push({ name, passed, detail });
-  console.log(`${passed ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
-}
-
-/** Getrennt von main(), damit sie auch nach einem fruehen, kontrollierten Abbruch
- *  (Praeflug-Check 0) noch eine Bilanz ausgibt — CORE-TEST-19: "nichts gemessen"
- *  ist ein eigener Zustand und soll nicht aussehen wie ein Crash ohne Ergebnis. */
-function printSummary(): void {
-  const failed = results.filter((check) => !check.passed);
-  console.log(`\n${results.length - failed.length}/${results.length} grün`);
-  if (failed.length > 0) {
-    console.log("Rot:");
-    for (const check of failed) console.log(`  - ${check.name}: ${check.detail}`);
-    process.exitCode = 1;
-  }
+/** Alle Punkte ab `ab` (Index in PUNKTE) als „nichts gemessen“ mit Grund aufzeichnen. */
+function restUnmeasured(ab: number, grund: string): void {
+  for (const name of PUNKTE.slice(ab)) bilanz.unmeasured(name, grund);
 }
 
 /** Erster Zeichen-Codepunkt > 255 in `s`, oder `null` — Header-Werte sind
@@ -221,14 +209,17 @@ const runCommand = (file: string | null, commandId: string, timeoutMs = 25000): 
 `;
 
 async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
-  const flag = (name: string): string | undefined => {
-    const index = argv.indexOf(`--${name}`);
-    return index === -1 ? undefined : argv[index + 1];
-  };
-  const port = Number(flag("port") ?? 9222);
-  const keep = argv.includes("--keep");
-  const vault = flag("vault");
+  const args = parseArgs(process.argv.slice(2));
+  const portRaw = args.value("port");
+  if (!portRaw || !Number.isInteger(Number(portRaw))) {
+    throw new Error(
+      "--port <Port> ist Pflicht (Zweitinstanz mit eigenem Profil und Port, Kopfkommentar). " +
+        "Es gibt keinen Standardport: 9222 ist die reguläre Instanz.",
+    );
+  }
+  const port = Number(portRaw);
+  const keep = args.has("keep");
+  const vault = args.value("vault") ?? PLUGIN_ID;
 
   console.log(`GUI-Smoke — Obsidian auf Port ${port}`);
   // `attachTo` unterscheidet Haupt- und Einstellungen-Fenster an der Sache (nur das
@@ -236,9 +227,8 @@ async function main(): Promise<void> {
   const cdp = await attachTo("workspace", port, vault);
   if (!cdp) {
     throw new Error(
-      `Kein Obsidian-Hauptfenster auf Port ${port}` +
-        (vault ? ` für Vault „${vault}“` : "") +
-        ". Läuft Obsidian mit --remote-debugging-port? (siehe Kopfkommentar)",
+      `Kein Obsidian-Hauptfenster auf Port ${port} für Vault „${vault}“. ` +
+        "Läuft die Zweitinstanz mit --remote-debugging-port? (siehe Kopfkommentar)",
     );
   }
 
@@ -294,31 +284,31 @@ async function main(): Promise<void> {
     if (!vaultName) throw new Error("Obsidians `app` ist im Renderer nicht erreichbar.");
     console.log(`Vault: ${vaultName}\n`);
 
+    // Vertrauensdialog bestätigen, Restricted Mode aufheben, Plugin laden (frisches Profil).
+    const vorbereitet = await bereiteInstanzVor(cdp, { pluginIds: [PLUGIN_ID], nurVault: vault, sprache: "en" });
+    console.log(`Instanz: ${vorbereitet.hinweis}`);
+
     const plugin = await cdp.evaluate<{ ok: boolean; version?: string; baseUrl?: string; syncRoot?: string; hasKey?: boolean }>(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
       if (!p) return { ok: false };
       return { ok: true, version: p.manifest.version, baseUrl: p.settings.baseUrl,
                syncRoot: p.settings.syncRoot, hasKey: Boolean(p.settings.apiKey) };
     `);
-    if (!plugin.ok) throw new Error(`Plugin ${PLUGIN_ID} ist nicht aktiv. Erst deployen.`);
-    // Derselbe Kniff wie beim spaeteren Praeflug-Check 0 (`f292c10`): ohne Wiki-URL/
-    // API-Schluessel wirft dieser Guard bisher einen unabgefangenen Error VOR dem ersten
-    // record() — der Lauf endet als nackter Crash statt mit einer Bilanz, in der alle
-    // Punkte "nichts gemessen" (CORE-TEST-19) sind. Ob gegen ein echtes Wiki oder einen
-    // Stub gelaufen wird, bleibt offen (eigene Task) — hier wird nur der Abbruch selbst
-    // sichtbar statt stumm.
-    record(
-      "00. Wiki-URL und API-Schlüssel sind in den Plugin-Einstellungen gesetzt",
-      Boolean(plugin.baseUrl) && Boolean(plugin.hasKey),
-      plugin.baseUrl && plugin.hasKey
-        ? `Wiki ${plugin.baseUrl}`
-        : `baseUrl: ${plugin.baseUrl ? "gesetzt" : "fehlt"} · apiKey: ${plugin.hasKey ? "gesetzt" : "fehlt"} — ` +
-          "alle folgenden Punkte übersprungen.",
-    );
-    if (!plugin.baseUrl || !plugin.hasKey) {
-      printSummary();
+    if (!plugin.ok) {
+      restUnmeasured(0, `Plugin ${PLUGIN_ID} nicht geladen (${vorbereitet.hinweis}) — erst bauen und deployen.`);
       return;
     }
+    // Ohne Wiki-URL/API-Schlüssel gibt es keine Gegenstelle: jeder Punkt ist „nichts gemessen“
+    // (CORE-TEST-19), nicht übersprungen und nicht grün. Ob gegen ein echtes Wiki oder einen
+    // Stub gelaufen wird, bleibt offen (eigene Task).
+    if (!plugin.baseUrl || !plugin.hasKey) {
+      restUnmeasured(
+        0,
+        `Keine Gegenstelle: baseUrl ${plugin.baseUrl ? "gesetzt" : "fehlt"} · apiKey ${plugin.hasKey ? "gesetzt" : "fehlt"} in den Plugin-Einstellungen.`,
+      );
+      return;
+    }
+    record(PUNKTE[0], true, `Wiki ${plugin.baseUrl}`);
     // Das Plugin neu laden, statt auf den Zufall zu setzen: Obsidian haelt den zuvor
     // geladenen `main.js` im Speicher, ein frisches `npm run deploy` erreicht den
     // laufenden Renderer also NICHT. Ohne diesen Schritt misst der Smoke einen
@@ -342,7 +332,7 @@ async function main(): Promise<void> {
     // melden, nicht wiederherstellen, damit das als Plugin-Bug missverstandene
     // Authentifizierungsproblem nicht in die falsche Richtung gesucht wird.
     record(
-      "0. apiKey trägt keinen liegen gebliebenen Test-Wert aus einem abgebrochenen Vorlauf",
+      "0a. apiKey trägt keinen liegen gebliebenen Test-Wert aus einem abgebrochenen Vorlauf",
       token !== "ungueltig-fuer-den-smoke",
       token === "ungueltig-fuer-den-smoke"
         ? "apiKey ist der Smoke-Testwert — der echte Schlüssel ist verloren, von Hand neu setzen"
@@ -355,16 +345,16 @@ async function main(): Promise<void> {
     // hier waeren sonst nicht "nichts gemessen", sondern ein nackter Absturz.
     const headerIssue = firstNonLatin1(token);
     record(
-      "0. API-Schlüssel ist header-tauglich (Latin-1/ByteString)",
+      "0b. API-Schlüssel ist header-tauglich (Latin-1/ByteString)",
       headerIssue === null,
       headerIssue === null
         ? "keine Zeichen außerhalb Latin-1"
         : `Zeichen U+${headerIssue.codePoint.toString(16).toUpperCase()} an Index ${headerIssue.index} — ` +
           "Header-Werte sind ByteStrings; der im Vault gespeicherte Schlüssel ist beschädigt " +
-          "(z. B. ein Aufnahme-Platzhalter, der nie zurückgesetzt wurde). Alle folgenden Punkte übersprungen.",
+          "(z. B. ein Aufnahme-Platzhalter, der nie zurückgesetzt wurde).",
     );
     if (headerIssue !== null) {
-      printSummary();
+      restUnmeasured(3, "Der gespeicherte API-Schlüssel ist nicht header-tauglich — keine Anfrage möglich.");
       return;
     }
     wiki = new Wiki(plugin.baseUrl, token);
@@ -909,12 +899,9 @@ async function main(): Promise<void> {
     // Prozess in onAbortSignal an einer toten Verbindung auf.
     process.off("SIGINT", onAbortSignal);
     process.off("SIGTERM", onAbortSignal);
+    // Auch nach einem Abbruch mitten im Lauf kommt die Bilanz; `runDriver` macht daraus Exit 2.
+    bilanz.abschluss();
   }
-
-  printSummary();
 }
 
-main().catch((error: unknown) => {
-  console.error(`\nAbbruch: ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
-});
+runDriver(main);
