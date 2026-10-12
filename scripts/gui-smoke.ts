@@ -1,6 +1,7 @@
 /**
  * GUI-Smoke-Treiber — fährt die mechanisch entscheidbaren Punkte aus `docs/SMOKE.md`
- * gegen ein **laufendes** Obsidian und eine **echte** Wiki.js-Instanz.
+ * gegen ein **laufendes** Obsidian und einen **lokalen Wiki.js-Stub** (`scripts/demo-wikijs.ts`).
+ * Mit `--live` fährt er stattdessen gegen die in den Plugin-Einstellungen konfigurierte echte Instanz.
  *
  * Warum getrackt (CORE-TEST-02 b): Der erste Hand-Durchlauf am 2026-08-12 kam bis
  * Punkt 11 und fand dort einen echten Fehler — `pages.update` verlangt `content` und
@@ -10,7 +11,9 @@
  *
  * Was er prüft, das die vitest-Suite strukturell nicht kann: den echten
  * Settings-Tab, die echte Status-Ansicht im DOM, und vor allem die **echten
- * Antworten von Wiki.js** — dort saßen beide bisher gefundenen Fehler.
+ * Antworten von Wiki.js** — dort saßen beide bisher gefundenen Fehler. Der Stub bildet diese
+ * Antworten und ihre Eigenheiten nach (Kopfkommentar dort), ersetzt aber nicht den Beweis gegen
+ * eine echte Instanz; die Bilanz weist den Lauf deshalb als „gegen Stub“ aus.
  *
  * ## Voraussetzung
  *
@@ -23,34 +26,40 @@
  * erledigt `bereiteInstanzVor` selbst. Den CDP-Lock für den eigenen Port halten
  * (`python3 ~/.claude/hooks/obsidian-cdp-lock.py acquire --label wikijs-maintainer --intent … --exclusive focus --port <port>`).
  *
- * Das Smoke-Ziel ist eine **echte Wiki.js-Instanz**: Wiki-URL und API-Schlüssel stehen in den
- * Plugin-Einstellungen des Vaults. Fehlen sie, ist jeder Prüfpunkt „nichts gemessen“ (Exit 1),
- * nicht grün.
+ * Das Smoke-Ziel ist standardmäßig der **Stub**: der Treiber startet ihn im eigenen Prozess (Port 0),
+ * setzt Wiki-URL und einen ASCII-Platzhalter-Schlüssel in die Plugin-Einstellungen und schreibt am
+ * Ende die vorherigen Werte zurück (der Schlüssel liegt über `saveSettings` im Schlüsselbund, der
+ * Eintrag `wikijs-maintainer-api-key` wird gelöscht, wenn vorher keiner da war). Mit `--live` sind
+ * Wiki-URL und API-Schlüssel der **echten Instanz** aus den Plugin-Einstellungen das Ziel; fehlen
+ * sie, ist jeder Prüfpunkt „nichts gemessen“ (Exit 1), nicht grün.
  *
  * ```bash
- * npm run smoke:gui -- --port <port>                # Vault-Name: wikijs-maintainer
+ * npm run smoke:gui -- --port <port>                # gegen Stub, Vault-Name: wikijs-maintainer
+ * npm run smoke:gui -- --port <port> --live         # gegen die konfigurierte Wiki-Instanz
  * npm run smoke:gui -- --port <port> --keep         # Testnotizen stehen lassen
  * ```
  *
- * ⚠️ Der Treiber schreibt in die konfigurierte Wiki-Instanz. Er legt ausschließlich
- * Seiten unter dem Präfix `zz-smoke-` an und löscht sie im `finally` wieder — auch
- * nach einem Abbruch. Er fasst keine andere Seite an.
+ * ⚠️ Mit `--live` schreibt der Treiber in die konfigurierte Wiki-Instanz; gegen den Stub in dessen
+ * Speicher. Er legt ausschließlich Seiten unter dem Präfix `zz-smoke-` an und löscht sie im
+ * `finally` wieder — auch nach einem Abbruch. Er fasst keine andere Seite an.
  *
  * ⚠️ Chromium drosselt das Rendering nicht-fokussierter Fenster: ohne Fokus bleibt das
  * DOM leer und man debuggt ein Phantom (CORE-TEST-02).
  */
 
 
-import { execFileSync } from "node:child_process";
 // Die CDP-Brücke liegt seit 2026-08-16 zentral im Dach (tools/obsidian-cdp/) und wird
 // importiert, nicht vendored: sie ist plugin-neutral und lief zuvor byte-identisch in
 // sechs Repos. Fehlt das Dach (fremder Checkout), bricht esbuild beim Auflösen ab — das
 // ist die gewollte Meldung. Was ihr fehlt, wird DORT ergänzt, nicht hier nachgebaut.
 import { Cdp, attachTo, bereiteInstanzVor, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
 import { createBilanz, parseArgs, runDriver } from "../../tools/obsidian-cdp/bilanz.js";
+import { startWikiStub, type RunningWikiStub } from "./demo-wikijs.js";
 
 const PLUGIN_ID = "wikijs-maintainer";
 const STATUS_VIEW = "wikijs-status";
+/** Feste ID des Schlüsselbund-Eintrags (`src/core/api-key-storage.ts`). */
+const API_KEY_SECRET_ID = "wikijs-maintainer-api-key";
 
 /** Alle Wiki-Pfade und Vault-Dateien des Smokes tragen dieses Präfix. Das ist die
  *  Zusicherung an den Maintainer: der Treiber fasst nichts an, was nicht ihm gehört —
@@ -61,7 +70,7 @@ const PREFIX = "zz-smoke";
 
 /** Soll-Liste (Nenner, CORE-TEST-19): ein Punkt, der nie aufgezeichnet wird, zählt als „nichts gemessen“. */
 const PUNKTE = [
-  "00. Plugin geladen, Wiki-URL und API-Schlüssel sind in den Plugin-Einstellungen gesetzt",
+  "00. Plugin geladen, Wiki-URL und API-Schlüssel stehen in den Plugin-Einstellungen (gegen Stub: vom Treiber gesetzt)",
   "0a. apiKey trägt keinen liegen gebliebenen Test-Wert aus einem abgebrochenen Vorlauf",
   "0b. API-Schlüssel ist header-tauglich (Latin-1/ByteString)",
   "1. Push legt die Seite im Wiki an",
@@ -219,6 +228,7 @@ async function main(): Promise<void> {
   }
   const port = Number(portRaw);
   const keep = args.has("keep");
+  const live = args.has("live");
   const vault = args.value("vault") ?? PLUGIN_ID;
 
   console.log(`GUI-Smoke — Obsidian auf Port ${port}`);
@@ -235,7 +245,20 @@ async function main(): Promise<void> {
   // Außerhalb des try: das `finally` muss auch nach einem Abbruch mitten im Lauf
   // zurückschreiben können, sonst bleibt der Vault im Smoke-Zustand stehen.
   let previousApiKey: string | null = null;
+  let previousBaseUrl = "";
   let wiki: Wiki | null = null;
+  let stub: RunningWikiStub | null = null;
+
+  /** Einstellungen von vorher zurückschreiben. War vorher kein Schlüssel da, bleibt auch im
+   *  Schlüsselbund keiner stehen (`saveSettings` hat den Platzhalter dort abgelegt). */
+  const restoreSettings = (): string => `
+    const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+    p.settings.apiKey = ${JSON.stringify(previousApiKey ?? "")};
+    p.settings.baseUrl = ${JSON.stringify(previousBaseUrl)};
+    await p.saveSettings();
+    ${previousApiKey === "" ? `await app.secretStorage?.deleteSecret?.(${JSON.stringify(API_KEY_SECRET_ID)});` : ""}
+    return true;
+  `;
 
   // Ein SIGINT mitten im Lauf ueberspringt das `finally` unten NICHT im try/catch-Sinn,
   // sondern beendet den Node-Prozess sofort — Punkt 6 verstellt `settings.apiKey` bewusst auf
@@ -252,13 +275,9 @@ async function main(): Promise<void> {
     void (async () => {
       console.log(`\n\nAbbruch durch ${signal} — raeume Vault-Zustand auf...`);
       if (previousApiKey !== null) {
-        await cdp.evaluate(`
-          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-          p.settings.apiKey = ${JSON.stringify(previousApiKey)};
-          await p.saveSettings();
-          return true;
-        `).catch(() => { console.log("  ! apiKey konnte nicht zurueckgeschrieben werden — von Hand pruefen"); });
+        await cdp.evaluate(restoreSettings()).catch(() => { console.log("  ! Einstellungen konnten nicht zurueckgeschrieben werden — von Hand pruefen"); });
       }
+      await stub?.close().catch(() => undefined);
       cdp.close();
       process.exit(130);
     })();
@@ -268,16 +287,8 @@ async function main(): Promise<void> {
 
   try {
     // Ohne Fokus drosselt Chromium den Renderer — der DOM bleibt leer, während die
-    // App-API korrekten Zustand meldet. `requireVisible` holt das Fenster selbst nach
-    // vorn und bricht mit Handlungsanweisung ab, wenn das nicht reicht.
-    if (process.platform === "darwin") {
-      try {
-        execFileSync("osascript", ["-e", 'tell application "Obsidian" to activate']);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      } catch {
-        console.log("  (Hinweis: `osascript activate` schlug fehl — Fenster ggf. von Hand nach vorn holen)");
-      }
-    }
+    // App-API korrekten Zustand meldet. `requireVisible` macht das Fenster dieser Zweitinstanz
+    // sichtbar und bricht mit Handlungsanweisung ab, wenn das nicht reicht.
     await requireVisible(cdp);
 
     const vaultName = await cdp.evaluate<string>(`return window.app?.appId ? app.vault.getName() : "";`);
@@ -288,27 +299,45 @@ async function main(): Promise<void> {
     const vorbereitet = await bereiteInstanzVor(cdp, { pluginIds: [PLUGIN_ID], nurVault: vault, sprache: "en" });
     console.log(`Instanz: ${vorbereitet.hinweis}`);
 
-    const plugin = await cdp.evaluate<{ ok: boolean; version?: string; baseUrl?: string; syncRoot?: string; hasKey?: boolean }>(`
+    const plugin = await cdp.evaluate<{ ok: boolean; version?: string; baseUrl?: string; syncRoot?: string; apiKey?: string }>(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
       if (!p) return { ok: false };
       return { ok: true, version: p.manifest.version, baseUrl: p.settings.baseUrl,
-               syncRoot: p.settings.syncRoot, hasKey: Boolean(p.settings.apiKey) };
+               syncRoot: p.settings.syncRoot, apiKey: p.settings.apiKey };
     `);
     if (!plugin.ok) {
       restUnmeasured(0, `Plugin ${PLUGIN_ID} nicht geladen (${vorbereitet.hinweis}) — erst bauen und deployen.`);
       return;
     }
-    // Ohne Wiki-URL/API-Schlüssel gibt es keine Gegenstelle: jeder Punkt ist „nichts gemessen“
-    // (CORE-TEST-19), nicht übersprungen und nicht grün. Ob gegen ein echtes Wiki oder einen
-    // Stub gelaufen wird, bleibt offen (eigene Task).
-    if (!plugin.baseUrl || !plugin.hasKey) {
-      restUnmeasured(
-        0,
-        `Keine Gegenstelle: baseUrl ${plugin.baseUrl ? "gesetzt" : "fehlt"} · apiKey ${plugin.hasKey ? "gesetzt" : "fehlt"} in den Plugin-Einstellungen.`,
-      );
-      return;
+    // Der gespeicherte Schlüssel bleibt im Node-Prozess und wird nie ausgegeben.
+    const storedKey = plugin.apiKey ?? "";
+    previousApiKey = storedKey;
+    previousBaseUrl = plugin.baseUrl ?? "";
+    if (live) {
+      // Ohne Wiki-URL/API-Schlüssel gibt es keine Gegenstelle: jeder Punkt ist „nichts gemessen“
+      // (CORE-TEST-19), nicht übersprungen und nicht grün.
+      if (!plugin.baseUrl || !storedKey) {
+        restUnmeasured(
+          0,
+          `Keine Gegenstelle: baseUrl ${plugin.baseUrl ? "gesetzt" : "fehlt"} · apiKey ${storedKey ? "gesetzt" : "fehlt"} in den Plugin-Einstellungen.`,
+        );
+        return;
+      }
+      record(PUNKTE[0], true, `Wiki ${plugin.baseUrl} (live)`);
+    } else {
+      // Gegenstelle ist der Stub. Einstellungen setzen, bevor das Plugin neu geladen wird: der
+      // Schlüssel geht über `saveSettings` in den Schlüsselbund und von dort wieder in den Speicher.
+      stub = await startWikiStub();
+      await cdp.evaluate(`
+        const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
+        p.settings.baseUrl = ${JSON.stringify(stub.url)};
+        p.settings.apiKey = ${JSON.stringify(stub.apiKey)};
+        await p.saveSettings();
+        return true;
+      `);
+      console.log(`Gegenstelle: Wiki.js-Stub ${stub.url} (kein echtes Wiki — Bilanz „gegen Stub“)`);
+      record(PUNKTE[0], true, `gegen Stub ${stub.url}, Schlüssel vom Treiber gesetzt`);
     }
-    record(PUNKTE[0], true, `Wiki ${plugin.baseUrl}`);
     // Das Plugin neu laden, statt auf den Zufall zu setzen: Obsidian haelt den zuvor
     // geladenen `main.js` im Speicher, ein frisches `npm run deploy` erreicht den
     // laufenden Renderer also NICHT. Ohne diesen Schritt misst der Smoke einen
@@ -320,9 +349,10 @@ async function main(): Promise<void> {
       return true;
     `);
     await new Promise((r) => setTimeout(r, 1200));
-    console.log(`Plugin ${plugin.version} · Wiki ${plugin.baseUrl} · Sync-Ordner ${plugin.syncRoot} (neu geladen)\n`);
+    const wikiUrl = stub?.url ?? plugin.baseUrl ?? "";
+    console.log(`Plugin ${plugin.version} · Wiki ${wikiUrl}${stub ? " (Stub)" : ""} · Sync-Ordner ${plugin.syncRoot} (neu geladen)\n`);
 
-    // Der Schlüssel bleibt im Node-Prozess und wird nie ausgegeben.
+    // Der Schlüssel, mit dem der Treiber selbst spricht (nach dem Neuladen aus den Einstellungen).
     const token = await cdp.evaluate<string>(
       `return app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings.apiKey;`,
     );
@@ -333,17 +363,16 @@ async function main(): Promise<void> {
     // Authentifizierungsproblem nicht in die falsche Richtung gesucht wird.
     record(
       "0a. apiKey trägt keinen liegen gebliebenen Test-Wert aus einem abgebrochenen Vorlauf",
-      token !== "ungueltig-fuer-den-smoke",
-      token === "ungueltig-fuer-den-smoke"
+      storedKey !== "ungueltig-fuer-den-smoke",
+      storedKey === "ungueltig-fuer-den-smoke"
         ? "apiKey ist der Smoke-Testwert — der echte Schlüssel ist verloren, von Hand neu setzen"
         : "unauffällig",
     );
-    previousApiKey = token;
 
     // Praeflug-Check 0: bricht der Treiber hier statt in einem der folgenden Punkte,
     // ist der Schluessel im VAULT beschaedigt (nicht der Treiber) — alle Punkte ab
     // hier waeren sonst nicht "nichts gemessen", sondern ein nackter Absturz.
-    const headerIssue = firstNonLatin1(token);
+    const headerIssue = firstNonLatin1(storedKey);
     record(
       "0b. API-Schlüssel ist header-tauglich (Latin-1/ByteString)",
       headerIssue === null,
@@ -353,11 +382,11 @@ async function main(): Promise<void> {
           "Header-Werte sind ByteStrings; der im Vault gespeicherte Schlüssel ist beschädigt " +
           "(z. B. ein Aufnahme-Platzhalter, der nie zurückgesetzt wurde).",
     );
-    if (headerIssue !== null) {
+    if (headerIssue !== null && live) {
       restUnmeasured(3, "Der gespeicherte API-Schlüssel ist nicht header-tauglich — keine Anfrage möglich.");
       return;
     }
-    wiki = new Wiki(plugin.baseUrl, token);
+    wiki = new Wiki(wikiUrl, token);
 
     const root = plugin.syncRoot ?? "_published";
     const notePath = (name: string): string => `${root}/${PREFIX}-${name}.md`;
@@ -584,7 +613,7 @@ async function main(): Promise<void> {
 
     await cdp.evaluate(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-      p.settings.apiKey = ${JSON.stringify(previousApiKey)};
+      p.settings.apiKey = ${JSON.stringify(token)};
       await p.saveSettings();
       return true;
     `);
@@ -851,14 +880,7 @@ async function main(): Promise<void> {
     // Aufräumen darf nie am Ergebnis hängen: auch ein abgebrochener Lauf gibt Vault
     // und Wiki so zurück, wie er sie vorgefunden hat.
     if (previousApiKey !== null) {
-      await cdp
-        .evaluate(`
-          const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
-          p.settings.apiKey = ${JSON.stringify(previousApiKey)};
-          await p.saveSettings();
-          return true;
-        `)
-        .catch(() => undefined);
+      await cdp.evaluate(restoreSettings()).catch(() => undefined);
     }
     if (!keep) {
       await cdp
@@ -893,6 +915,15 @@ async function main(): Promise<void> {
         const purged = await wiki.purge().catch(() => 0);
         if (purged > 0) console.log(`\nAufgeräumt: ${purged} Wiki-Seite(n) des Smokes gelöscht.`);
       }
+    }
+    if (stub) {
+      const gesehen = stub.log();
+      const nach = (o: string): number => gesehen.filter((e) => e.outcome === o).length;
+      console.log(
+        `\nStub-Mitschnitt: ${gesehen.length} Anfragen · ${gesehen.filter((e) => e.write).length} schreibend · `
+        + `Forbidden ${nach("forbidden")} · Fehler im responseResult ${nach("result-error")} · GraphQL-Fehler ${nach("graphql-error")}`,
+      );
+      await stub.close().catch(() => undefined);
     }
     cdp.close();
     // Abmelden, sonst haengt ein SPAETES Signal (nach normalem Abschluss, cdp schon zu) den
