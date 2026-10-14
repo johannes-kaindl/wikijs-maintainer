@@ -114,6 +114,12 @@ export class WikijsStatusView extends ItemView {
     }
     if (PUSHABLE.has(entry.state)) {
       const meta = plan.meta.get(entry.wikiPath);
+      // Fehlende Pflichtfelder: wie eine Kollision blockiert, mit dem Feldnamen statt eines
+      // wirkungslosen Knopfes (pushOne wuerde ohnehin ablehnen).
+      if (meta !== undefined && meta.missing.length > 0) {
+        row.setDesc(`${t(statusLabelKey(entry.state))} · ${t("status.missingFields", meta.missing.join(", "))}`);
+        return;
+      }
       if (meta !== undefined) {
         row.addButton((b) =>
           b.setButtonText(t("view.push")).onClick(async () => {

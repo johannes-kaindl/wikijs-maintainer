@@ -11,6 +11,8 @@ export interface WikijsSettings {
   syncRoot: string;
   /** Wiki.js-Locale der angelegten Seiten. */
   locale: string;
+  /** Kommagetrennte Frontmatter-Schluessel, die vor dem Push gesetzt sein muessen. Leer = keine Pruefung. */
+  requiredFields: string;
   timeoutSec: number;
 }
 
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS: WikijsSettings = {
   apiKey: "",
   syncRoot: "_published",
   locale: "de",
+  requiredFields: "",
   timeoutSec: 30,
 };
 

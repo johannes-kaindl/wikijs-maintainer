@@ -20,7 +20,7 @@ export interface CollectedPages {
   ambiguousNames: AmbiguousName[];
 }
 
-export async function collectLocalPages(vault: Vault, syncRoot: string): Promise<CollectedPages> {
+export async function collectLocalPages(vault: Vault, syncRoot: string, requiredFields: string[] = []): Promise<CollectedPages> {
   const files = vault.getMarkdownFiles().filter((f: TFile) => vaultPathToWikiPath(f.path, syncRoot) !== null);
 
   // Erst die vollstaendige Karte bauen, dann transformieren: ein Wikilink darf nicht
@@ -76,7 +76,7 @@ export async function collectLocalPages(vault: Vault, syncRoot: string): Promise
     const wikiPath = vaultPathToWikiPath(file.path, syncRoot);
     if (wikiPath === null) continue;
     const raw = await vault.cachedRead(file);
-    const result = transformForWiki(raw, file.basename, resolve);
+    const result = transformForWiki(raw, file.basename, resolve, requiredFields);
     pages.push({ vaultPath: file.path, wikiPath, raw, transformed: result.content });
     meta.set(wikiPath, result);
   }

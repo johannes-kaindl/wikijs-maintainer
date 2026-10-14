@@ -5,7 +5,7 @@ import type { TransformResult } from "../src/core/transform";
 import type { SlugCollision } from "../src/core/paths";
 
 const meta: TransformResult = {
-  content: "neu", title: "T", description: "", tags: [], published: true, unresolved: [], skippedEmbeds: [],
+  content: "neu", title: "T", description: "", tags: [], published: true, missing: [], unresolved: [], skippedEmbeds: [],
 };
 
 function service(clientOverrides: Record<string, unknown> = {}, storeOverrides: Record<string, unknown> = {}) {
@@ -56,6 +56,33 @@ describe("SyncService.pushOne", () => {
     const calls = [...client.createPage.mock.calls, ...client.updatePage.mock.calls] as unknown as Array<[...unknown[], { published: boolean }]>;
     expect(calls).toHaveLength(3);
     for (const call of calls) expect(call.at(-1)).toMatchObject({ published: false });
+  });
+
+  describe("Pflichtfelder", () => {
+    const fehlt = { ...meta, missing: ["seitentyp"] };
+
+    it("blockiert create UND update mit den fehlenden Feldern und fasst das Wiki nicht an", async () => {
+      const { svc, client, store } = service();
+      const created = await svc.pushOne(entry({ state: "create", pageId: undefined, snapshot: undefined }), fehlt, noCollisions);
+      const updated = await svc.pushOne(entry({}), fehlt, noCollisions);
+      expect(created).toEqual({ kind: "blocked", reason: "missing-fields", fields: ["seitentyp"] });
+      expect(updated).toEqual({ kind: "blocked", reason: "missing-fields", fields: ["seitentyp"] });
+      expect(client.createPage).not.toHaveBeenCalled();
+      expect(client.updatePage).not.toHaveBeenCalled();
+      expect(client.fetchUpdatedAt).not.toHaveBeenCalled();
+      expect(store.save).not.toHaveBeenCalled();
+    });
+
+    it("ohne fehlende Felder pusht wie bisher", async () => {
+      const { svc, client } = service();
+      expect(await svc.pushOne(entry({}), meta, noCollisions)).toEqual({ kind: "updated" });
+      expect(client.updatePage).toHaveBeenCalledTimes(1);
+    });
+
+    it("ein unveraenderter Eintrag bleibt 'unchanged', auch wenn Pflichtfelder fehlen (nichts zu pushen)", async () => {
+      const { svc } = service();
+      expect(await svc.pushOne(entry({ state: "unchanged" }), fehlt, noCollisions)).toEqual({ kind: "skipped", reason: "unchanged" });
+    });
   });
 
   it("prueft vor dem Update den Drift-Guard und aktualisiert bei Gleichstand", async () => {

@@ -39,6 +39,11 @@ describe("describeOutcome", () => {
     expect(msg).toBe(t("notice.noLocal", "a"));
     expect(msg).not.toBe(t("notice.occupied", "a"));
   });
+  it("blocked/missing-fields nennt die fehlenden Felder", () => {
+    const msg = describeOutcome({ kind: "blocked", reason: "missing-fields", fields: ["seitentyp", "autor"] }, "a");
+    expect(msg).toBe(t("notice.missingFields", "a", "seitentyp, autor"));
+    expect(msg).toContain("seitentyp, autor");
+  });
   it("blocked/remote-deleted bekommt eine eigene Meldung", () => {
     const msg = describeOutcome({ kind: "blocked", reason: "remote-deleted" }, "a");
     expect(msg).toBe(t("notice.remoteDeleted", "a"));

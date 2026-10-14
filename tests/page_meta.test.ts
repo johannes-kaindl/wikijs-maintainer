@@ -99,4 +99,21 @@ describe("extractPageMeta", () => {
     const raw = ["---", "description:", "summary: Rueckfall", "---", "Text", ""].join("\n");
     expect(extractPageMeta(raw, "X").description).toBe("Rueckfall");
   });
+
+  describe("Pflichtfelder", () => {
+    const raw = ["---", "seitentyp: Anleitung", "pruefzyklus:", "tags: [a]", "leer: ''", "---", "Text", ""].join("\n");
+    it("meldet nichts, wenn keine Pflichtfelder konfiguriert sind", () => {
+      expect(extractPageMeta(raw, "X").missing).toEqual([]);
+    });
+    it("meldet fehlende UND leere Felder, in der konfigurierten Reihenfolge", () => {
+      expect(extractPageMeta(raw, "X", ["seitentyp", "pruefzyklus", "autor", "leer"]).missing).toEqual(["pruefzyklus", "autor", "leer"]);
+    });
+    it("eine Liste als Wert zaehlt als gesetzt, eine leere Liste nicht", () => {
+      const r = ["---", "tags: [a]", "keine: []", "---", "T", ""].join("\n");
+      expect(extractPageMeta(r, "X", ["tags", "keine"]).missing).toEqual(["keine"]);
+    });
+    it("ohne Frontmatter fehlen alle konfigurierten Felder", () => {
+      expect(extractPageMeta("Text\n", "X", ["seitentyp"]).missing).toEqual(["seitentyp"]);
+    });
+  });
 });

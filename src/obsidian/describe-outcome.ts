@@ -36,6 +36,7 @@ function describeBlocked(outcome: Extract<PushOutcome, { kind: "blocked" }>, wik
   // schickte den Nutzer damit auf die Suche nach einer Seite, die es nicht gibt.
   if (outcome.reason === "incomplete") return t("notice.incomplete", wikiPath);
   if (outcome.reason === "occupied") return t("notice.occupied", wikiPath);
+  if (outcome.reason === "missing-fields") return t("notice.missingFields", wikiPath, outcome.fields.join(", "));
   return assertNever(outcome.reason);
 }
 

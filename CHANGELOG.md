@@ -6,6 +6,7 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **New setting *Required frontmatter fields*: pages that lack them are blocked before the push.** List the frontmatter keys every page must carry (for example `seitentyp, pruefzyklus`). A page where one is missing or empty shows as blocked in the status view with the field name, has no Push button, and *Push all changes* skips it and counts it as blocked. Empty by default, so nothing changes until you set it.
 - **Frontmatter field `wiki_published` controls whether a page is visible in the wiki.** Before, every push set the page to published, so a page you had deliberately unpublished went back online on the next push that changed anything. With `wiki_published: false` the page is created hidden and stays hidden across later pushes; without the field nothing changes (published). A value that is neither a clear yes nor a clear no (a typo) keeps the page hidden rather than publishing it.
 
 ### Fixed

@@ -4,7 +4,7 @@ import type { BuiltPlan } from "../src/obsidian/sync-service";
 import type { TransformResult } from "../src/core/transform";
 
 const meta = (over: Partial<TransformResult> = {}): TransformResult => ({
-  content: "neu", title: "T", description: "", tags: [], published: true, unresolved: [], skippedEmbeds: [], ...over,
+  content: "neu", title: "T", description: "", tags: [], published: true, missing: [], unresolved: [], skippedEmbeds: [], ...over,
 });
 
 function plan(entries: BuiltPlan["entries"], metaEntries: [string, TransformResult][]): BuiltPlan {

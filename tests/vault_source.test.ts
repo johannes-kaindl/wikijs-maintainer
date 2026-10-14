@@ -137,4 +137,14 @@ describe("collectLocalPages", () => {
       "voll [_published/Netzwerk/Uebersicht](/netzwerk/uebersicht), kurz [Netzwerk/Uebersicht](/netzwerk/uebersicht)",
     );
   });
+
+  it("reicht die Pflichtfelder an die Transformation durch und meldet fehlende je Seite", async () => {
+    const vault = fakeVault({
+      "_published/A.md": "---\nseitentyp: x\n---\nText",
+      "_published/B.md": "kein Frontmatter",
+    });
+    const out = await collectLocalPages(vault as never, "_published", ["seitentyp"]);
+    expect(out.meta.get("a")?.missing).toEqual([]);
+    expect(out.meta.get("b")?.missing).toEqual(["seitentyp"]);
+  });
 });

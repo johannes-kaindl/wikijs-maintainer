@@ -23,7 +23,7 @@ beforeEach(() => {
 });
 
 function meta(): TransformResult {
-  return { content: "c", title: "t", description: "d", tags: [], published: true, unresolved: [], skippedEmbeds: [] };
+  return { content: "c", title: "t", description: "d", tags: [], published: true, missing: [], unresolved: [], skippedEmbeds: [] };
 }
 
 function entry(wikiPath: string, state: SyncEntry["state"]): SyncEntry {
@@ -513,6 +513,22 @@ describe("WikijsStatusView — Ausgang aus 'occupied'", () => {
   });
 });
 
+describe("WikijsStatusView — fehlende Pflichtfelder", () => {
+  it("zeigt die Zeile als blockiert mit dem Feldnamen und ohne Push-Knopf", async () => {
+    const wikiPath = "a/pflicht";
+    const container = await renderPlan({
+      entries: [entry(wikiPath, "update")],
+      meta: new Map([[wikiPath, { ...meta(), missing: ["seitentyp", "autor"] }]]),
+      collisions: [],
+      ambiguousNames: [],
+    });
+    const row = findRow(container, wikiPath);
+    expect(String(row.descValue)).toContain(t("status.missingFields", "seitentyp, autor"));
+    expect(String(row.descValue)).toContain(t("status.update"));
+    expect(buttonTexts(row)).not.toContain(t("view.push"));
+  });
+});
+
 // Minor-Befund aus der Gesamtreview, hier mit erledigt: bei einer blockierten Zeile
 // ersetzte der Kollisionshinweis die Zustandsbeschriftung, statt sie zu ergaenzen —
 // der Nutzer sah, DASS blockiert ist, aber nicht mehr, was ohne die Kollision passiert waere.
@@ -554,7 +570,7 @@ describe("WikijsStatusView — refresh() ist serialisiert", () => {
     const second = view.refresh();
     await Promise.all([first, second]);
     expect(view.contentEl.querySelectorAll(".wikijs-collision")).toHaveLength(1);
-    expect(view.contentEl.querySelectorAll(".setting-item").filter((el: any) => el.__setting?.nameValue === "a/x")).toHaveLength(1);
+    expect(Array.from(view.contentEl.querySelectorAll(".setting-item") as ArrayLike<any>).filter((el: any) => el.__setting?.nameValue === "a/x")).toHaveLength(1);
   });
 
   it("zeichnet das Ergebnis des zuletzt gestarteten Laufs, auch wenn ein frueherer spaeter fertig wird", async () => {

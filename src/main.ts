@@ -127,6 +127,7 @@ export default class WikijsMaintainerPlugin extends Plugin {
       vault: this.app.vault,
       syncRoot: () => this.settings.syncRoot,
       locale: this.settings.locale,
+      requiredFields: this.settings.requiredFields.split(",").map((f) => f.trim()).filter((f) => f !== ""),
       resolveConflict: (entry, remoteContent) =>
         askConflict(this.app, {
           wikiPath: entry.wikiPath,

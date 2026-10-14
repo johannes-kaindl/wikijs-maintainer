@@ -24,7 +24,8 @@ function localFrontmatterPrefix(raw: string | undefined): string {
 export type PushOutcome =
   | { kind: "created" | "updated" }
   | { kind: "skipped"; reason: "unchanged" }
-  | { kind: "blocked"; reason: "drift" | "occupied" | "collision" | "no-local" | "remote-deleted" | "incomplete" };
+  | { kind: "blocked"; reason: "drift" | "occupied" | "collision" | "no-local" | "remote-deleted" | "incomplete" }
+  | { kind: "blocked"; reason: "missing-fields"; fields: string[] };
 
 export type PullOutcome = { kind: "written"; vaultPath: string } | { kind: "skipped" };
 
@@ -41,6 +42,8 @@ export interface SyncDeps {
   syncRoot: () => string;
   /** Eingestellte Wiki-Sprache; der Plan schluesselt auf Sprache und Pfad (s. `planSync`). */
   locale?: string;
+  /** Frontmatter-Felder, die eine Seite vor dem Push tragen muss (Einstellung `requiredFields`). */
+  requiredFields?: string[];
   /** Fehlt dieser Auflöser, wird ein `conflict`-Eintrag ohne Rückfrage blockiert
    *  (s. Guard am Anfang von `pushOne`). Gesetzt, entscheidet er per Diff-Dialog. */
   resolveConflict?: (entry: SyncEntry, remoteContent: string) => Promise<ConflictChoice>;
@@ -82,7 +85,7 @@ export class SyncService {
   constructor(private readonly deps: SyncDeps) {}
 
   async buildPlan(): Promise<BuiltPlan> {
-    const collected = await collectLocalPages(this.deps.vault, this.deps.syncRoot());
+    const collected = await collectLocalPages(this.deps.vault, this.deps.syncRoot(), this.deps.requiredFields);
     const [snapshots, remotes] = await Promise.all([this.deps.store.loadAll(), this.deps.client.listPages()]);
     return {
       entries: planSync({ locals: collected.pages, snapshots, remotes, locale: this.deps.locale }),
@@ -131,6 +134,10 @@ export class SyncService {
     // sie kein `local` haben — keins davon ist eine Slug-Kollision ("occupied" waere hier
     // fachlich falsch, s. main.ts describeOutcome).
     if (entry.local === undefined) return { kind: "blocked", reason: "no-local" };
+
+    // Pflichtfelder vor jedem Schreiben ins Wiki (Stufe 1): `unchanged` ist oben schon beantwortet,
+    // von hier an wuerde jeder Zweig schreiben.
+    if (meta.missing.length > 0) return { kind: "blocked", reason: "missing-fields", fields: meta.missing };
 
     if (entry.state === "create") {
       const created = await this.deps.client.createPage(this.inputFor(entry, meta));

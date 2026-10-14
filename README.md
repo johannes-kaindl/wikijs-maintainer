@@ -73,6 +73,7 @@ Open the plugin's settings tab and fill in:
   `_published`). Its structure maps 1:1 onto wiki paths:
   `_published/Network/DNS-Setup.md` becomes `network/dns-setup`. Moving a note
   into this folder is a publication decision.
+- **Required frontmatter fields** — comma-separated keys every page must carry before it is pushed (empty by default). A page missing one shows as blocked with the field name in the status view, and *Push all changes* skips it
 - **Wiki locale** — the Wiki.js locale of the pages this plugin manages: new pages are created in it, pages of other locales are ignored
   (default `de`).
 - **Request timeout** — per-request timeout in seconds (5–120, default 30).

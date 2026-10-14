@@ -10,6 +10,7 @@ export interface TransformResult {
   description: string;
   tags: string[];
   published: boolean;
+  missing: string[];
   unresolved: string[];
   skippedEmbeds: string[];
 }
@@ -61,8 +62,13 @@ function transformCallouts(body: string): string {
 
 /** Der eine Eingang der Push-Richtung: Rohtext der Notiz → alles, was die
  *  create/update-Mutation braucht, plus die Befunde fuer den Sync-Report. */
-export function transformForWiki(raw: string, fallbackTitle: string, resolve: LinkResolver): TransformResult {
-  const meta = extractPageMeta(raw, fallbackTitle);
+export function transformForWiki(
+  raw: string,
+  fallbackTitle: string,
+  resolve: LinkResolver,
+  requiredFields: string[] = [],
+): TransformResult {
+  const meta = extractPageMeta(raw, fallbackTitle, requiredFields);
   const links = rewriteLinks(meta.body, resolve);
   return {
     content: transformCallouts(links.text),
@@ -70,6 +76,7 @@ export function transformForWiki(raw: string, fallbackTitle: string, resolve: Li
     description: meta.description,
     tags: meta.tags,
     published: meta.published,
+    missing: meta.missing,
     unresolved: links.unresolved,
     skippedEmbeds: links.skippedEmbeds,
   };

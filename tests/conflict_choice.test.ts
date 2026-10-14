@@ -3,7 +3,7 @@ import { SyncService } from "../src/obsidian/sync-service";
 import type { SyncEntry } from "../src/core/sync-plan";
 import type { TransformResult } from "../src/core/transform";
 
-const meta: TransformResult = { content: "neu", title: "T", description: "", tags: [], published: true, unresolved: [], skippedEmbeds: [] };
+const meta: TransformResult = { content: "neu", title: "T", description: "", tags: [], published: true, missing: [], unresolved: [], skippedEmbeds: [] };
 
 const conflictEntry: SyncEntry = {
   wikiPath: "a", state: "conflict", pageId: 5,

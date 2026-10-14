@@ -71,6 +71,11 @@ export class WikijsSettingsTab extends PluginSettingTab {
         control: { type: "folder", key: "syncRoot" },
       },
       {
+        name: t("settings.requiredFields"),
+        desc: t("settings.requiredFields.desc"),
+        control: { type: "text", key: "requiredFields", placeholder: "seitentyp, pruefzyklus" },
+      },
+      {
         name: t("settings.locale"),
         desc: t("settings.locale.desc"),
         control: { type: "text", key: "locale", placeholder: "de" },

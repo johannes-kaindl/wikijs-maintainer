@@ -185,7 +185,7 @@ function fakeService(plugin: WikijsMaintainerPlugin, impl: Record<string, unknow
 
 const planWithEntry = (wikiPath: string) => ({
   entries: [{ wikiPath, state: "update" as const }],
-  meta: new Map([[wikiPath, { content: "c", title: "t", description: "", tags: [], published: true, unresolved: [], skippedEmbeds: [] }]]),
+  meta: new Map([[wikiPath, { content: "c", title: "t", description: "", tags: [], published: true, missing: [], unresolved: [], skippedEmbeds: [] }]]),
   collisions: [],
   ambiguousNames: [],
 });

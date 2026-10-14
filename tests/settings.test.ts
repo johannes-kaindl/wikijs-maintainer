@@ -38,7 +38,7 @@ describe("WikijsSettingsTab", () => {
     // Das erste Element ist die Hilfe-Zeile (Render-Hatch ohne control, tests/help-row.test.ts).
     const keys = tab.getSettingDefinitions().slice(1).map((item) => (item as { control?: { key?: string } }).control?.key);
     // Der API-Schluessel ist eine render-Hatch (Maskierung) und traegt deshalb kein `control.key`.
-    expect(keys).toEqual(["baseUrl", undefined, "syncRoot", "locale", "timeoutSec"]);
+    expect(keys).toEqual(["baseUrl", undefined, "syncRoot", "requiredFields", "locale", "timeoutSec"]);
   });
 
   // Der Schluessel stand bis Welle 11 im Klartext im Feld (Screenshot, Bildschirmfreigabe).

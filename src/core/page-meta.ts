@@ -9,6 +9,8 @@ export interface PageMeta {
   tags: string[];
   /** Frontmatter `wiki_published`; ohne Angabe `true` (das Verhalten vor diesem Feld). */
   published: boolean;
+  /** Konfigurierte Pflichtfelder, die in dieser Notiz fehlen oder leer sind. */
+  missing: string[];
   body: string;
 }
 
@@ -21,6 +23,11 @@ function asTags(value: string | number | string[] | undefined): string[] {
   if (value === undefined) return [];
   const list = Array.isArray(value) ? value : String(value).split(",");
   return list.map((tag) => tag.trim()).filter((tag) => tag !== "");
+}
+
+function isBlank(value: string | number | string[] | undefined): boolean {
+  if (value === undefined) return true;
+  return Array.isArray(value) ? value.length === 0 : String(value).trim() === "";
 }
 
 const PUBLISHED_TRUE = new Set(["true", "yes", "on", "1"]);
@@ -38,7 +45,7 @@ function asPublished(value: string | number | string[] | undefined): boolean {
 
 /** `fallbackTitle` ist der Dateiname ohne Endung — der Titel der Wiki-Seite, wenn
  *  kein Frontmatter-`title` gesetzt ist (Spec § 3). */
-export function extractPageMeta(raw: string, fallbackTitle: string): PageMeta {
+export function extractPageMeta(raw: string, fallbackTitle: string, requiredFields: string[] = []): PageMeta {
   const parsed = parseFrontmatter(raw);
   const title = asString(parsed.data.title).trim();
   // `description` heisst das Feld in Wiki.js und in jedem daraus gezogenen Vault; `summary` bleibt Rueckfall.
@@ -48,6 +55,7 @@ export function extractPageMeta(raw: string, fallbackTitle: string): PageMeta {
     description: description === "" ? asString(parsed.data.summary).trim() : description,
     tags: asTags(parsed.data.tags),
     published: asPublished(parsed.data.wiki_published),
+    missing: requiredFields.filter((field) => isBlank(parsed.data[field])),
     // parseFrontmatter konsumiert nur den Zeilenumbruch direkt hinter dem
     // schliessenden "---" — die im Vault uebliche Leerzeile zwischen
     // Frontmatter und Text bleibt im Body stehen. Getrimmt, sonst begaenne
