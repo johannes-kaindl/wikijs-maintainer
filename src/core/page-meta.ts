@@ -1,6 +1,6 @@
 // Frontmatter → Wiki.js-Seitenmetadaten. Das Frontmatter selbst wird NIE gepusht
 // (Spec § 3): es ist Vault-Verwaltung, in der Wiki-Seite waere es sichtbarer Muell.
-// Ausgewertet werden nur title, summary und tags.
+// Ausgewertet werden nur title, description (Rueckfall summary) und tags.
 import { parseFrontmatter } from "../vendor/kit/frontmatter";
 
 export interface PageMeta {
@@ -26,9 +26,11 @@ function asTags(value: string | number | string[] | undefined): string[] {
 export function extractPageMeta(raw: string, fallbackTitle: string): PageMeta {
   const parsed = parseFrontmatter(raw);
   const title = asString(parsed.data.title).trim();
+  // `description` heisst das Feld in Wiki.js und in jedem daraus gezogenen Vault; `summary` bleibt Rueckfall.
+  const description = asString(parsed.data.description).trim();
   return {
     title: title === "" ? fallbackTitle : title,
-    description: asString(parsed.data.summary).trim(),
+    description: description === "" ? asString(parsed.data.summary).trim() : description,
     tags: asTags(parsed.data.tags),
     // parseFrontmatter konsumiert nur den Zeilenumbruch direkt hinter dem
     // schliessenden "---" — die im Vault uebliche Leerzeile zwischen

@@ -4,6 +4,14 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **The page description now comes from the frontmatter field `description`, with `summary` as a fallback.** `description` is the field name Wiki.js itself uses, so a vault pulled from an existing wiki keeps its descriptions on the next push instead of losing them. A note with both fields uses `description`; notes that only use `summary` behave as before.
+
+### Changed
+
+- **The page description now comes from the frontmatter field `description`, with `summary` as a fallback.** `description` is the field name Wiki.js itself uses, so a vault pulled from an existing wiki keeps its descriptions on the next push instead of losing them. A note with both fields uses `description`; notes that only use `summary` behave as before.
+
 ## [0.3.2] — 2026-10-12
 
 ### Changed

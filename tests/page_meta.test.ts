@@ -41,4 +41,25 @@ describe("extractPageMeta", () => {
   it("liefert leere tags, wenn das Feld fehlt", () => {
     expect(extractPageMeta("Text\n", "X").tags).toEqual([]);
   });
+
+  // Wiki.js nennt das Feld `description`; ein aus einem Wiki gezogener Vault traegt es so.
+  it("liest die Beschreibung aus `description`", () => {
+    const raw = ["---", "description: Aus dem Wiki", "---", "Text", ""].join("\n");
+    expect(extractPageMeta(raw, "X").description).toBe("Aus dem Wiki");
+  });
+
+  it("nimmt `summary` als Rueckfall, wenn `description` fehlt", () => {
+    const raw = ["---", "summary: Nur summary", "---", "Text", ""].join("\n");
+    expect(extractPageMeta(raw, "X").description).toBe("Nur summary");
+  });
+
+  it("`description` gewinnt, wenn beide Felder gesetzt sind", () => {
+    const raw = ["---", "summary: alt", "description: neu", "---", "Text", ""].join("\n");
+    expect(extractPageMeta(raw, "X").description).toBe("neu");
+  });
+
+  it("faellt auf `summary` zurueck, wenn `description` leer ist", () => {
+    const raw = ["---", "description:", "summary: Rueckfall", "---", "Text", ""].join("\n");
+    expect(extractPageMeta(raw, "X").description).toBe("Rueckfall");
+  });
 });
