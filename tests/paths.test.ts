@@ -69,7 +69,23 @@ describe("wikiPathToVaultPath", () => {
   });
 
   it("entschaerft Zeichen, die in einem Dateinamen nicht vorkommen duerfen", () => {
-    expect(wikiPathToVaultPath("faq", "_published", "Was/Wie: Warum?")).toBe("_published/Was-Wie- Warum.md");
+    expect(wikiPathToVaultPath("a-b", "_published", "A: B")).toBe("_published/A- B.md");
+  });
+
+  // Der Pull benannte die Datei nach dem Titel, der Push leitet den Pfad aus dem Dateinamen
+  // ab: wo slugify(Titel) nicht das letzte Pfadsegment ergibt, wanderte die Seite beim naechsten
+  // Push auf einen anderen Pfad, und die alte erschien als `removed-locally`.
+  it("nimmt das letzte Pfadsegment, wenn der Titel nicht zum Pfad slugifiziert", () => {
+    expect(wikiPathToVaultPath("faq", "_published", "Was/Wie: Warum?")).toBe("_published/faq.md");
+    expect(wikiPathToVaultPath("netzwerk/dns", "_published", "Alles ueber den Resolver")).toBe("_published/netzwerk/dns.md");
+  });
+
+  it("Round-Trip Pull -> Push: der Pfad bleibt, fuer jeden Titel", () => {
+    const titles = ["DNS Setup", "Was/Wie: Warum?", "Ganz anderer Titel", "", "E-Mail Sicherheit", "  "];
+    for (const title of titles) {
+      const vaultPath = wikiPathToVaultPath("netzwerk/dns-setup", "_published", title);
+      expect(vaultPathToWikiPath(vaultPath, "_published"), title).toBe("netzwerk/dns-setup");
+    }
   });
 });
 

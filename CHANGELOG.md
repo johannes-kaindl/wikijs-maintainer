@@ -15,6 +15,8 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 - **The status view no longer shows every row twice when it refreshes while a refresh is still running.** Two overlapping refreshes (opening the view and clicking Refresh on a slow wiki, or toggling *Show unchanged*) both cleared the view first and both appended afterwards, so you could click Push twice on the same row. Only the most recently started refresh draws now.
 
+- **A pulled note keeps its wiki path when you push it back.** Pulling named the file after the page title, while pushing derives the wiki path from the file name; wherever the title did not slugify to the last path segment, the next push moved the page to a different path and offered to unpublish the original. The pulled file is now named after the title only when it maps back to the same path, otherwise after the last path segment. Paths with characters outside `a-z`, `0-9` and `-` (for example `ß`) still cannot be reproduced from a file name.
+
 ### Changed
 
 - **The page description now comes from the frontmatter field `description`, with `summary` as a fallback.** `description` is the field name Wiki.js itself uses, so a vault pulled from an existing wiki keeps its descriptions on the next push instead of losing them. A note with both fields uses `description`; notes that only use `summary` behave as before.

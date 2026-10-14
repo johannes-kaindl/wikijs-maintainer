@@ -47,15 +47,20 @@ export function vaultPathToWikiPath(vaultPath: string, syncRoot: string): string
 }
 
 /** Wiki-Pfad → Vault-Pfad fuer den Pull. Der Titel wird zum Dateinamen (er ist die
- *  menschenlesbare Fassung); Zeichen, die kein Dateiname tragen kann, werden ersetzt. */
+ *  menschenlesbare Fassung), aber nur, wenn er zum Pfad zurueckrechnet: der Push leitet den
+ *  Wiki-Pfad aus dem Dateinamen ab, ein abweichender Titel liesse die Seite beim naechsten Push
+ *  auf einen anderen Pfad wandern. Sonst gilt das letzte Pfadsegment. Zeichen, die kein
+ *  Dateiname tragen kann, werden ersetzt.
+ *  Grenze: ein Pfadsegment, das selbst nicht dem Slug-Alphabet entspricht (Wiki.js erlaubt etwa
+ *  `ß`), laesst sich so nicht verlustfrei rueckrechnen; das braucht einen Pfad-Anker. */
 export function wikiPathToVaultPath(wikiPath: string, syncRoot: string, title: string): string {
   const root = stripTrailingSlash(syncRoot);
   const segments = wikiPath.split("/");
   const last = segments[segments.length - 1] ?? wikiPath;
   const folder = segments.slice(0, -1).join("/");
-  const name = (title.trim() === "" ? last : title)
-    .replace(/[\\/:*?"<>|]/g, "-")
-    .replace(/^-+|-+$/g, "");
+  const clean = (text: string): string => text.replace(/[\\/:*?"<>|]/g, "-").replace(/^-+|-+$/g, "");
+  const fromTitle = clean(title);
+  const name = title.trim() !== "" && slugifySegment(fromTitle) === last ? fromTitle : clean(last);
   return [root, folder, `${name}.md`].filter((p) => p !== "").join("/");
 }
 
