@@ -8,7 +8,7 @@
 //    (z.B. ein .canvas dort).
 //  - pushAll haengt jetzt eine eigene Report-Zeile fuer Depublizieren/Loeschen an.
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, type TFile } from "obsidian";
+import { App, Modal, type TFile } from "obsidian";
 import { confirmAction } from "../src/vendor/kit-obsidian/confirm";
 import { makeFile, makeManifest, notices } from "./helpers/mock-types";
 import { defineStrings, setLang, t } from "../src/vendor/kit/i18n";
@@ -392,6 +392,60 @@ describe("testConnection", () => {
     });
     await plugin.testConnection();
     expect(noticeTexts()).toEqual([t("notice.authFailed")]);
+  });
+});
+
+describe("importExisting (Command 'Bestand uebernehmen')", () => {
+  const imported = { created: 2, overwritten: 0, skipped: 0, errors: [] };
+
+  it("ohne URL/Key nur der Hinweis", async () => {
+    const plugin = makePlugin(false);
+    await (plugin as unknown as { importExisting(): Promise<void> }).importExisting();
+    expect(noticeTexts()).toEqual([t("notice.noUrl")]);
+  });
+
+  it("meldet 'nichts zu uebernehmen', ohne zu fragen", async () => {
+    const plugin = makePlugin(true);
+    fakeService(plugin, {
+      buildPlan: () => Promise.resolve({ entries: [], meta: new Map(), collisions: [], ambiguousNames: [] }),
+      previewImport: () => ({ create: [], overwrite: [] }),
+      importExisting: vi.fn(),
+    });
+    await (plugin as unknown as { importExisting(): Promise<void> }).importExisting();
+    expect(noticeTexts()).toEqual([t("import.nothing")]);
+  });
+
+  it("legt nach der Wahl den Bericht in die Notice", async () => {
+    const plugin = makePlugin(true);
+    const importExisting = vi.fn(() => Promise.resolve(imported));
+    fakeService(plugin, {
+      buildPlan: () => Promise.resolve({ entries: [], meta: new Map(), collisions: [], ambiguousNames: [] }),
+      previewImport: () => ({ create: ["a", "b"], overwrite: [] }),
+      importExisting,
+    });
+    const run = (plugin as unknown as { importExisting(): Promise<void> }).importExisting();
+    await new Promise((r) => setTimeout(r, 0));
+    const modal = (Modal as unknown as { __last: { contentEl: any } }).__last;
+    modal.contentEl.querySelectorAll("button")[0].__component.clickCB();
+    await run;
+    expect(importExisting).toHaveBeenCalledWith(expect.anything(), "wiki-wins");
+    expect(noticeTexts()).toEqual([t("report.import", 2, 0, 0)]);
+  });
+
+  it("Abbrechen im Dialog schreibt nichts", async () => {
+    const plugin = makePlugin(true);
+    const importExisting = vi.fn();
+    fakeService(plugin, {
+      buildPlan: () => Promise.resolve({ entries: [], meta: new Map(), collisions: [], ambiguousNames: [] }),
+      previewImport: () => ({ create: ["a"], overwrite: [] }),
+      importExisting,
+    });
+    const run = (plugin as unknown as { importExisting(): Promise<void> }).importExisting();
+    await new Promise((r) => setTimeout(r, 0));
+    (Modal as unknown as { __last: { close(): void } }).__last.close();
+    await run;
+    expect(importExisting).not.toHaveBeenCalled();
+    expect(noticeTexts()).toEqual([]);
   });
 });
 

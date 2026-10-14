@@ -3,7 +3,7 @@
 export const LIST_PAGES = `query { pages { list(orderBy: PATH) { id path title locale updatedAt } } }`;
 
 export const SINGLE_PAGE = `query($id: Int!) {
-  pages { single(id: $id) { id path title description content updatedAt tags { tag } } }
+  pages { single(id: $id) { id path title description content updatedAt isPublished tags { tag } } }
 }`;
 
 /** Drift-Guard: bewusst nur ein Feld — der Query laeuft vor JEDEM Push.

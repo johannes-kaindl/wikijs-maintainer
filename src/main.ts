@@ -9,9 +9,10 @@ import { SnapshotStore } from "./obsidian/snapshot-store";
 import { WikiClient } from "./wikijs/client";
 import { askConflict } from "./obsidian/conflict-modal";
 import { askRemoval } from "./obsidian/removal-modal";
+import { askImport } from "./obsidian/import-modal";
 import { WikijsStatusView, VIEW_TYPE_WIKIJS_STATUS } from "./obsidian/status-view";
 import { describeError, describeOutcome, describePullOutcome } from "./obsidian/describe-outcome";
-import { formatReport } from "./obsidian/format-report";
+import { formatImportReport, formatReport } from "./obsidian/format-report";
 import { loadApiKey, persistApiKey } from "./core/api-key-storage";
 import { obsidianSecretStore } from "./vendor/kit-obsidian/secrets";
 import { confirmAction } from "./vendor/kit-obsidian/confirm";
@@ -64,6 +65,12 @@ export default class WikijsMaintainerPlugin extends Plugin {
       id: "push-all-changes",
       name: t("command.pushAll"),
       callback: () => void this.pushAll(),
+    });
+
+    this.addCommand({
+      id: "import-existing",
+      name: t("command.import"),
+      callback: () => void this.importExisting(),
     });
 
     this.addCommand({
@@ -232,6 +239,29 @@ export default class WikijsMaintainerPlugin extends Plugin {
       }
       const report = await service.pushAll(plan);
       new Notice(formatReport(report));
+    } catch (err) {
+      new Notice(describeError(err));
+    }
+  }
+
+  // Bestand uebernehmen: Vorab-Bericht, Wahl bei vorhandenen Notizen, dann Sammel-Pull ueber alle
+  // Seiten ohne Snapshot. Schreibt nie ins Wiki.
+  private async importExisting(): Promise<void> {
+    if (!this.hasCredentials()) {
+      new Notice(t("notice.noUrl"));
+      return;
+    }
+    try {
+      const service = this.buildService();
+      const plan = await service.buildPlan();
+      const preview = service.previewImport(plan);
+      if (preview.create.length === 0 && preview.overwrite.length === 0) {
+        new Notice(t("import.nothing"));
+        return;
+      }
+      const choice = await askImport(this.app, preview);
+      if (choice === "cancel") return;
+      new Notice(formatImportReport(await service.importExisting(plan, choice)));
     } catch (err) {
       new Notice(describeError(err));
     }

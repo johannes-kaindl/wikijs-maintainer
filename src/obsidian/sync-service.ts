@@ -11,7 +11,7 @@ import type { SlugCollision } from "../core/paths";
 import { wikiPathToVaultPath } from "../core/paths";
 import type { ConflictChoice } from "./conflict-modal";
 import type { RemovalChoice } from "./removal-modal";
-import { parseFrontmatter } from "../vendor/kit/frontmatter";
+import { parseFrontmatter, serializeFrontmatter, type FmValue } from "../vendor/kit/frontmatter";
 
 /** Frontmatter-Block samt der Leerzeilen davor, die der Push vom Body abschneidet
  *  (`extractPageMeta`), unveraendert aus der lokalen Datei; leer ohne Frontmatter. */
@@ -19,6 +19,36 @@ function localFrontmatterPrefix(raw: string | undefined): string {
   if (raw === undefined) return "";
   const bodyTrimmed = parseFrontmatter(raw).body.replace(/^\n+/, "");
   return raw.slice(0, raw.length - bodyTrimmed.length);
+}
+
+/** Frontmatter aus den Feldern einer Wiki-Seite: Titel, Beschreibung, Tags und, bei einer
+ *  unveroeffentlichten Seite, `wiki_published: false`. Ohne sie wuerde der erste Push nach dem
+ *  Import Beschreibung und Tags leeren und eine bewusst unsichtbare Seite veroeffentlichen. */
+function wikiFrontmatter(page: { title: string; description: string; tags: string[]; isPublished?: boolean }): string {
+  const data: Record<string, FmValue> = {};
+  const order: string[] = [];
+  const put = (key: string, value: FmValue): void => { data[key] = value; order.push(key); };
+  if (page.title.trim() !== "") put("title", page.title.trim());
+  if (page.description.trim() !== "") put("description", page.description.trim());
+  if (page.tags.length > 0) put("tags", page.tags);
+  if (page.isPublished === false) put("wiki_published", "false");
+  return order.length === 0 ? "" : serializeFrontmatter(data, order);
+}
+
+export interface ImportPreview {
+  /** Wiki-Pfade, fuer die eine neue Datei entstuende. */
+  create: string[];
+  /** Wiki-Pfade, deren bestehende Notiz die Wiki-Fassung ersetzen wuerde. */
+  overwrite: string[];
+}
+
+export type ImportMode = "wiki-wins" | "skip-existing";
+
+export interface ImportReport {
+  created: number;
+  overwritten: number;
+  skipped: number;
+  errors: { wikiPath: string; message: string }[];
 }
 
 export type PushOutcome =
@@ -265,6 +295,53 @@ export class SyncService {
       raw: written, pushed: page.content, remoteUpdatedAt: page.updatedAt,
     });
     return { kind: "written", vaultPath };
+  }
+
+  /** Was "Bestand uebernehmen" taete: die Seiten ohne Snapshot, die es nur im Wiki gibt
+   *  (`new-remote`, neue Datei) oder zu denen eine Notiz unter demselben Slug liegt (`occupied`,
+   *  das Wiki ersetzt deren Text). Eintraege mit Slug-Kollision zaehlen nicht. */
+  previewImport(plan: BuiltPlan): ImportPreview {
+    const blocked = new Set(plan.collisions.map((c) => c.wikiPath));
+    const usable = plan.entries.filter((e) => !blocked.has(e.wikiPath) && e.pageId !== undefined);
+    return {
+      create: usable.filter((e) => e.state === "new-remote").map((e) => e.wikiPath),
+      overwrite: usable.filter((e) => e.state === "occupied" && e.local !== undefined).map((e) => e.wikiPath),
+    };
+  }
+
+  /** "Bestand uebernehmen": legt zu jeder Wiki-Seite ohne Snapshot die Datei an und schreibt den
+   *  Snapshot dazu — fachlich ein Sammel-Pull ueber `new-remote` und `occupied`. Schreibt NIE ins
+   *  Wiki: der Client wird nur zum Lesen (`fetchPage`) benutzt. `skip-existing` laesst bestehende
+   *  Notizen stehen (auch ohne Snapshot, sie bleiben `occupied`); `wiki-wins` ersetzt ihren Text
+   *  durch die Wiki-Fassung und behaelt ihr Frontmatter. Ein Fehler bei einer Seite beendet den
+   *  Lauf nicht. */
+  async importExisting(plan: BuiltPlan, mode: ImportMode): Promise<ImportReport> {
+    const report: ImportReport = { created: 0, overwritten: 0, skipped: 0, errors: [] };
+    const write = this.deps.writeNote;
+    if (write === undefined) return report;
+    const blocked = new Set(plan.collisions.map((c) => c.wikiPath));
+    for (const entry of plan.entries) {
+      if (entry.state !== "new-remote" && entry.state !== "occupied") continue;
+      if (blocked.has(entry.wikiPath) || entry.pageId === undefined) { report.skipped++; continue; }
+      const existing = entry.state === "occupied" ? entry.local : undefined;
+      if (entry.state === "occupied" && (existing === undefined || mode === "skip-existing")) { report.skipped++; continue; }
+      try {
+        const page = await this.deps.client.fetchPage(entry.pageId);
+        const vaultPath = existing?.vaultPath ?? wikiPathToVaultPath(entry.wikiPath, this.deps.syncRoot(), page.title);
+        const prefix = existing === undefined ? "" : localFrontmatterPrefix(existing.raw);
+        const written = (prefix !== "" ? prefix : wikiFrontmatter(page)) + page.content;
+        await write(vaultPath, written);
+        await this.deps.store.save({
+          version: 1, wikiPath: entry.wikiPath, pageId: entry.pageId,
+          raw: written, pushed: page.content, remoteUpdatedAt: page.updatedAt,
+        });
+        if (existing === undefined) report.created++;
+        else report.overwritten++;
+      } catch (err) {
+        report.errors.push({ wikiPath: entry.wikiPath, message: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    return report;
   }
 
   /** Einen verwaisten Snapshot vergessen: weder lokale Datei noch Wiki-Seite existieren

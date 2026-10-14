@@ -81,7 +81,7 @@ Im Einstellungs-Tab des Plugins eintragen:
 
 ## Verwendung
 
-Vier Befehle, alle über die Befehlspalette:
+Fünf Befehle, alle über die Befehlspalette:
 
 - **Sync-Status anzeigen** — listet jede Seite unter der Sync-Wurzel als neu,
   geändert, konfliktär, entfernt oder unverändert. Nicht jede Zeile hat einen Knopf:
@@ -94,6 +94,7 @@ Vier Befehle, alle über die Befehlspalette:
 - **Aktuelle Notiz pushen** — veröffentlicht oder aktualisiert die aktive Notiz.
 - **Alle Änderungen pushen** — fährt den vollen Plan. Eine fehlgeschlagene Seite
   beendet den Lauf nicht; die Fehler stehen mit Ursache in der Abschlussmeldung.
+- **Bestehende Wiki-Seiten übernehmen** — für ein Wiki, das schon Seiten hat: legt zu jeder Wiki-Seite, die du noch nicht hast, eine Notiz an und schreibt den Snapshot, sodass alles als unverändert startet. Zuerst kommt ein Bericht (wie viele Notizen neu sind, wie viele vorhandene Notizen auf einer Wiki-Seite liegen); für diese wählst du *Nur neue übernehmen* oder *Wiki gewinnt* (der Wiki-Text ersetzt den Text der Notiz, ihr Frontmatter bleibt). Es schreibt nie ins Wiki. Die neuen Notizen tragen Titel, Beschreibung und Tags der Seite als Frontmatter, bei einer unveröffentlichten Seite zusätzlich `wiki_published: false`, damit der nächste Push nichts versehentlich ändert.
 - **Aktuelle Notiz vom Wiki holen** — zieht den Wiki-Stand in den Vault, wenn die
   Seite dort geändert wurde. Ein Pull ersetzt nur den Text unter dem Frontmatter: der Frontmatter-Block der Notiz (`title`, `tags`, `seitentyp`, `aliases`, …) bleibt unverändert, weil das Wiki ihn nicht kennt.
 

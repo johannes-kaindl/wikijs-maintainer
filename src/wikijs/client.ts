@@ -32,6 +32,8 @@ export interface FetchedPage {
   description: string;
   content: string;
   updatedAt: string;
+  /** Sichtbarkeit im Wiki; fehlt sie in einer Antwort, gilt die Seite als veroeffentlicht. */
+  isPublished?: boolean;
   /** Flach gezogen aus der `tags { tag }`-Form der API. Leere Liste statt
    *  `undefined`, weil der update-Resolver darueber stolpert (s. UNPUBLISH_PAGE). */
   tags: string[];

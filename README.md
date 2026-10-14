@@ -84,7 +84,7 @@ Open the plugin's settings tab and fill in:
 
 ## Usage
 
-Four commands, all from the command palette:
+Five commands, all from the command palette:
 
 - **Show sync status** — opens a view listing every page under the sync root
   as new, changed, conflicting, removed, or unchanged. Not every row has a
@@ -99,6 +99,7 @@ Four commands, all from the command palette:
 - **Push all changes** — runs the full sync plan. Continues past a failing
   page instead of stopping the batch; failures are collected and reported
   in a summary Notice at the end.
+- **Import existing wiki pages** — for a wiki that already has pages: creates a note for every wiki page you do not have yet and writes the snapshot, so everything starts as unchanged. A report comes first (how many notes are new, how many existing notes lie on a wiki page); for those you choose *Import new only* or *Wiki wins* (the wiki text replaces the note's text, its frontmatter stays). It never writes to the wiki. The new notes carry the page's title, description and tags as frontmatter, and `wiki_published: false` for an unpublished page, so the next push changes nothing by accident.
 - **Pull current note from wiki** — pulls the active note's content from
   the wiki when it changed remotely. A pull replaces only the text below the frontmatter: the note's frontmatter block (`title`, `tags`, `seitentyp`, `aliases`, …) stays exactly as it is, because the wiki does not hold it.
 

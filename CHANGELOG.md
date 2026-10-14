@@ -6,6 +6,7 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **New command *Import existing wiki pages*.** Attaching the plugin to a wiki that already has pages used to leave every page blocked as occupied. The command creates a note for each wiki page you do not have yet and writes its snapshot, so the whole wiki starts as unchanged; for notes that already lie on a wiki page you choose *Import new only* or *Wiki wins* after a report. It never writes to the wiki. Imported notes carry the page's title, description and tags as frontmatter (and `wiki_published: false` for an unpublished page), so the first push after the import does not wipe them or publish a hidden page.
 - **New button *Test connection* in the settings** lists the pages of your configured locale, so a wrong URL or API key shows up right there.
 - **Status view: every row shows its state as an icon, not only as text** (check = nothing to do, triangle = action pending, cross = blocked), the empty view says what to do next, and *Discard snapshot* asks for confirmation first.
 - **Push all changes now asks for confirmation** with the number of pages before it writes to the wiki. Nothing is asked when there is nothing to push.
