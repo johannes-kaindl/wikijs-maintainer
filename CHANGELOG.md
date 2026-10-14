@@ -26,6 +26,7 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- Kit vendoring raised from `obsidian-kit` 0.57.0 to 0.60.1 and from `code-kit` 0.24.0 to 0.27.1. Nothing changes for users from this step alone: of the modules this plugin vendors, only the version headers differ (the releases in between changed other modules: tool providers, share export, slug, local time stamps, secret values, which this plugin does not use yet).
 - **The page description now comes from the frontmatter field `description`, with `summary` as a fallback.** `description` is the field name Wiki.js itself uses, so a vault pulled from an existing wiki keeps its descriptions on the next push instead of losing them. A note with both fields uses `description`; notes that only use `summary` behave as before.
 
 ### Changed
