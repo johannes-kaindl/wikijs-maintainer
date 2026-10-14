@@ -4,6 +4,8 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-14
+
 ### Added
 
 - **Renaming a note now moves its wiki page instead of creating a new one and offering to unpublish the old one.** A note whose text is identical to a tracked page's last pushed text, with exactly one such candidate on each side and the wiki page unchanged since, shows as *Renamed locally* with a **Move** button; moving keeps the page id, its history and its place in the wiki. Anything less clear-cut (edited while renaming, two identical candidates, an empty note) stays as *New* plus *Removed locally*, so you decide. The wiki's `move` mutation has only been exercised against the test stub, not against a real instance yet.
