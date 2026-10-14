@@ -55,7 +55,9 @@ describe("SyncService.pullOne", () => {
     expect(store.save).toHaveBeenCalledWith(expect.objectContaining({ remoteUpdatedAt: "T9" }));
   });
 
-  it("legt eine im Wiki neu angelegte Seite unter dem aus Titel und Pfad gebauten Ort ab", async () => {
+  // Der Titel "DNS Setup" slugifiziert zu `dns-setup`, nicht zu `dns`: als Dateiname fuehrte er
+  // beim naechsten Push auf einen anderen Wiki-Pfad. Deshalb gilt das letzte Pfadsegment.
+  it("legt eine im Wiki neu angelegte Seite unter dem Ort ab, der beim Push denselben Pfad ergibt", async () => {
     const { svc, writeNote } = service();
     const entry: SyncEntry = {
       wikiPath: "netzwerk/dns",
@@ -63,8 +65,8 @@ describe("SyncService.pullOne", () => {
       pageId: 5,
       remote: { id: 5, path: "netzwerk/dns", title: "DNS Setup", updatedAt: "T9" },
     };
-    expect(await svc.pullOne(entry)).toEqual({ kind: "written", vaultPath: "_published/netzwerk/DNS Setup.md" });
-    expect(writeNote).toHaveBeenCalledWith("_published/netzwerk/DNS Setup.md", "wiki-text");
+    expect(await svc.pullOne(entry)).toEqual({ kind: "written", vaultPath: "_published/netzwerk/dns.md" });
+    expect(writeNote).toHaveBeenCalledWith("_published/netzwerk/dns.md", "wiki-text");
   });
 
   it("schreibt den Snapshot mit dem neuen updatedAt fort — sonst gilt die Seite sofort wieder als geaendert", async () => {
