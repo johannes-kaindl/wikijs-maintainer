@@ -61,4 +61,9 @@ describe("transformForWiki", () => {
     expect(out.content).toBe("[A](/a) und B\n");
     expect(out.unresolved).toEqual(["B"]);
   });
+
+  it("traegt die Sichtbarkeit aus dem Frontmatter ins Ergebnis", () => {
+    expect(transformForWiki("Text\n", "T", resolve).published).toBe(true);
+    expect(transformForWiki("---\nwiki_published: false\n---\nText\n", "T", resolve).published).toBe(false);
+  });
 });

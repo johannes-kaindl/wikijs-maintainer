@@ -97,6 +97,7 @@ export class SyncService {
       description: meta.description,
       tags: meta.tags,
       content: meta.content,
+      published: meta.published,
     };
   }
 

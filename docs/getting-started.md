@@ -17,7 +17,7 @@ Leave **Sync folder** at `_published` for now. **Wiki locale** (default `de`) is
 
 ## 3. Put a note into the sync folder
 
-Create the folder `_published` in your vault and move a note into it, for example `_published/Network/DNS-Setup.md`. Moving a note in there *is* the decision to publish it. The path maps 1:1 onto the wiki path: that note becomes `network/dns-setup`. The page title is the file name, or the `title` in the note's frontmatter if you set one; frontmatter `description` (or `summary` as a fallback) and `tags` become the page description and tags. The frontmatter itself is never published.
+Create the folder `_published` in your vault and move a note into it, for example `_published/Network/DNS-Setup.md`. Moving a note in there *is* the decision to publish it. The path maps 1:1 onto the wiki path: that note becomes `network/dns-setup`. The page title is the file name, or the `title` in the note's frontmatter if you set one; frontmatter `description` (or `summary` as a fallback) and `tags` become the page description and tags. The frontmatter itself is never published. A note is published by default; to keep a page invisible in the wiki, set `wiki_published: false` in its frontmatter (it stays hidden across later pushes, and removing the field publishes it on the next push).
 
 ## 4. Look at the plan
 

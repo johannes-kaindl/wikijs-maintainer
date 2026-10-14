@@ -158,7 +158,7 @@ export async function startWikiStub(apiKey = "smoke-stub-key"): Promise<RunningW
           description: String(v.description ?? ""),
           content: String(v.content ?? ""),
           tags: Array.isArray(v.tags) ? (v.tags as unknown[]).map(String) : [],
-          isPublished: true,
+          isPublished: typeof v.isPublished === "boolean" ? v.isPublished : true,
           locale: String(v.locale ?? "en"),
           updatedAt: stamp(),
         };
@@ -176,7 +176,7 @@ export async function startWikiStub(apiKey = "smoke-stub-key"): Promise<RunningW
         page.content = v.content;
         if (typeof v.title === "string") page.title = v.title;
         if (typeof v.description === "string") page.description = v.description;
-        page.isPublished = op === "unpublish" ? false : true;
+        page.isPublished = op === "unpublish" ? false : typeof v.isPublished === "boolean" ? v.isPublished : true;
         page.updatedAt = stamp();
         // `tags` fehlt → der Resolver hat die Seite schon geändert und stolpert erst danach.
         if (!Array.isArray(v.tags)) return { errors: [{ message: MAP_OF_UNDEFINED }] };

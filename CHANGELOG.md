@@ -4,6 +4,10 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Frontmatter field `wiki_published` controls whether a page is visible in the wiki.** Before, every push set the page to published, so a page you had deliberately unpublished went back online on the next push that changed anything. With `wiki_published: false` the page is created hidden and stays hidden across later pushes; without the field nothing changes (published). A value that is neither a clear yes nor a clear no (a typo) keeps the page hidden rather than publishing it.
+
 ### Changed
 
 - **The page description now comes from the frontmatter field `description`, with `summary` as a fallback.** `description` is the field name Wiki.js itself uses, so a vault pulled from an existing wiki keeps its descriptions on the next push instead of losing them. A note with both fields uses `description`; notes that only use `summary` behave as before.

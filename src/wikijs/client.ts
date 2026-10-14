@@ -21,6 +21,8 @@ export interface PageInput {
   description: string;
   tags: string[];
   content: string;
+  /** Sichtbarkeit nach dem Push; kommt aus der Notiz, nicht aus dem Werkzeug. */
+  published: boolean;
 }
 
 export interface FetchedPage {
@@ -175,7 +177,7 @@ export class WikiClient {
   async createPage(input: PageInput): Promise<{ id: number; updatedAt: string }> {
     const data = await this.gql<{
       pages: { create: { responseResult: ResponseResult; page: { id: number; updatedAt: string } | null } };
-    }>(CREATE_PAGE, { ...input, locale: this.opts.locale });
+    }>(CREATE_PAGE, { ...input, isPublished: input.published, locale: this.opts.locale });
     this.assertSucceeded(data.pages.create.responseResult, "Anlegen");
     const page = data.pages.create.page;
     if (page === null) throw new WikiError("graphql", "Anlegen meldete Erfolg ohne Seite");
@@ -185,7 +187,7 @@ export class WikiClient {
   async updatePage(id: number, input: PageInput): Promise<{ updatedAt: string }> {
     const data = await this.gql<{
       pages: { update: { responseResult: ResponseResult; page: { updatedAt: string } | null } };
-    }>(UPDATE_PAGE, { id, ...input });
+    }>(UPDATE_PAGE, { id, ...input, isPublished: input.published });
     this.assertSucceeded(data.pages.update.responseResult, "Aktualisieren");
     const page = data.pages.update.page;
     if (page === null) throw new WikiError("graphql", "Aktualisieren meldete Erfolg ohne Seite");

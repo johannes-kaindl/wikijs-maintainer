@@ -16,9 +16,11 @@ export const PAGE_UPDATED_AT = `query($id: Int!) { pages { single(id: $id) { upd
 // (docs/LAB.md). $tags: [String]! ist an beiden Stellen zulaessig — ein Non-Null-Wert
 // darf an eine nullable Position uebergeben werden — und der Client uebergibt ohnehin
 // immer ein Array (leer statt null).
-export const CREATE_PAGE = `mutation($content: String!, $description: String!, $path: String!, $tags: [String]!, $title: String!, $locale: String!) {
+// `isPublished` ist eine Variable, keine Konstante: eine fest verdrahtete Sichtbarkeit nahm jede
+// bewusst depublizierte Seite beim naechsten Push wieder online (Frontmatter `wiki_published`).
+export const CREATE_PAGE = `mutation($content: String!, $description: String!, $path: String!, $tags: [String]!, $title: String!, $locale: String!, $isPublished: Boolean!) {
   pages {
-    create(content: $content, description: $description, editor: "markdown", isPublished: true,
+    create(content: $content, description: $description, editor: "markdown", isPublished: $isPublished,
            isPrivate: false, locale: $locale, path: $path, tags: $tags, title: $title) {
       responseResult { succeeded errorCode slug message }
       page { id updatedAt }
@@ -26,9 +28,9 @@ export const CREATE_PAGE = `mutation($content: String!, $description: String!, $
   }
 }`;
 
-export const UPDATE_PAGE = `mutation($id: Int!, $content: String!, $description: String!, $tags: [String]!, $title: String!) {
+export const UPDATE_PAGE = `mutation($id: Int!, $content: String!, $description: String!, $tags: [String]!, $title: String!, $isPublished: Boolean!) {
   pages {
-    update(id: $id, content: $content, description: $description, tags: $tags, title: $title, isPublished: true) {
+    update(id: $id, content: $content, description: $description, tags: $tags, title: $title, isPublished: $isPublished) {
       responseResult { succeeded errorCode slug message }
       page { id updatedAt }
     }

@@ -23,7 +23,7 @@ beforeEach(() => {
 });
 
 function meta(): TransformResult {
-  return { content: "c", title: "t", description: "d", tags: [], unresolved: [], skippedEmbeds: [] };
+  return { content: "c", title: "t", description: "d", tags: [], published: true, unresolved: [], skippedEmbeds: [] };
 }
 
 function entry(wikiPath: string, state: SyncEntry["state"]): SyncEntry {

@@ -78,6 +78,7 @@ const PUNKTE = [
   "1. Push legt die Seite im Wiki an",
   "2. Zweiter Push aktualisiert, ohne zu doppeln",
   "3. Depublizieren macht die Seite unsichtbar (Historie bleibt)",
+  "14. Sichtbarkeit: wiki_published: false bleibt über mehrere Pushs mit Inhaltsänderung unsichtbar",
   "4. Slug-Kollision: Warnblock da, Push für die Zeile gesperrt",
   "5. Mehrdeutiger Name: Hinweisblock da, Push bleibt möglich",
   "6. Falscher Schlüssel: Meldung benennt die Authentifizierung",
@@ -526,6 +527,39 @@ async function main(): Promise<void> {
             : unpublished === undefined
               ? "Seite ist ganz verschwunden — erwartet war depubliziert, nicht geloescht"
               : `isPublished=${unpublished.isPublished}`,
+    );
+
+    // --- 14. Sichtbarkeit aus dem Frontmatter -------------------------------
+    // Sicherheitsrelevant: eine bewusst depublizierte Seite darf durch einen späteren Push
+    // nicht wieder online gehen (früher: `isPublished: true` fest im Update-Dokument).
+    // Gemessen wird drüben im Wiki, über drei Pushs mit Inhaltsänderung; Gegenprobe: dieselbe
+    // Notiz ohne das Feld wird veröffentlicht.
+    const hiddenPath = notePath("versteckt");
+    const writeHidden = (text: string): Promise<boolean> => cdp.evaluate<boolean>(`
+      const path = ${JSON.stringify(hiddenPath)};
+      const body = ${JSON.stringify(text)};
+      const old = app.vault.getAbstractFileByPath(path);
+      if (old) await app.vault.modify(old, body); else await app.vault.create(path, body);
+      return true;
+    `);
+    const hiddenSeen: boolean[] = [];
+    for (const text of [
+      "---\nwiki_published: false\n---\n# Versteckt\n\nEins.\n",
+      "---\nwiki_published: false\n---\n# Versteckt\n\nZwei.\n",
+      "---\nwiki_published: false\n---\n# Versteckt\n\nDrei.\n",
+    ]) {
+      await writeHidden(text);
+      await fuehreCommandAus(cdp, hiddenPath, `${PLUGIN_ID}:push-current-note`);
+      const page = await wiki.find(`${PREFIX}-versteckt`);
+      hiddenSeen.push(page !== undefined && page.isPublished === false);
+    }
+    await writeHidden("# Versteckt\n\nOhne Feld, jetzt öffentlich.\n");
+    await fuehreCommandAus(cdp, hiddenPath, `${PLUGIN_ID}:push-current-note`);
+    const nowPublic = await wiki.find(`${PREFIX}-versteckt`);
+    record(
+      "14. Sichtbarkeit: wiki_published: false bleibt über mehrere Pushs mit Inhaltsänderung unsichtbar",
+      hiddenSeen.length === 3 && hiddenSeen.every(Boolean) && nowPublic?.isPublished === true,
+      `nach Push 1-3 unsichtbar: ${hiddenSeen.join("/")} · ohne Feld danach isPublished=${nowPublic?.isPublished}`,
     );
 
     // --- 4. Slug-Kollision sperrt den Push ---------------------------------

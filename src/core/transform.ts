@@ -9,6 +9,7 @@ export interface TransformResult {
   title: string;
   description: string;
   tags: string[];
+  published: boolean;
   unresolved: string[];
   skippedEmbeds: string[];
 }
@@ -68,6 +69,7 @@ export function transformForWiki(raw: string, fallbackTitle: string, resolve: Li
     title: meta.title,
     description: meta.description,
     tags: meta.tags,
+    published: meta.published,
     unresolved: links.unresolved,
     skippedEmbeds: links.skippedEmbeds,
   };

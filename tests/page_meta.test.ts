@@ -42,6 +42,43 @@ describe("extractPageMeta", () => {
     expect(extractPageMeta("Text\n", "X").tags).toEqual([]);
   });
 
+  // Sichtbarkeit ist eine Eigenschaft der Notiz, keine Konstante des Werkzeugs: eine
+  // bewusst depublizierte Seite darf durch einen spaeteren Push nicht wieder online gehen.
+  it("veroeffentlicht standardmaessig (kein wiki_published)", () => {
+    expect(extractPageMeta("Text\n", "X").published).toBe(true);
+  });
+
+  it("liest wiki_published: false als nicht veroeffentlicht", () => {
+    const raw = ["---", "wiki_published: false", "---", "Text", ""].join("\n");
+    expect(extractPageMeta(raw, "X").published).toBe(false);
+  });
+
+  it("liest wiki_published: true als veroeffentlicht", () => {
+    const raw = ["---", "wiki_published: true", "---", "Text", ""].join("\n");
+    expect(extractPageMeta(raw, "X").published).toBe(true);
+  });
+
+  it("erkennt Schreibvarianten (False, 'no', \"false\")", () => {
+    for (const v of ["False", "FALSE", "no", "off", "0", '"false"']) {
+      const raw = ["---", `wiki_published: ${v}`, "---", "Text", ""].join("\n");
+      expect(extractPageMeta(raw, "X").published, v).toBe(false);
+    }
+    for (const v of ["True", "yes", "on", "1"]) {
+      const raw = ["---", `wiki_published: ${v}`, "---", "Text", ""].join("\n");
+      expect(extractPageMeta(raw, "X").published, v).toBe(true);
+    }
+  });
+
+  it("behandelt einen nicht lesbaren Wert als NICHT veroeffentlicht (im Zweifel unsichtbar)", () => {
+    const raw = ["---", "wiki_published: vielleicht", "---", "Text", ""].join("\n");
+    expect(extractPageMeta(raw, "X").published).toBe(false);
+  });
+
+  it("ein leeres wiki_published zaehlt wie ein fehlendes (Standard: veroeffentlicht)", () => {
+    const raw = ["---", "wiki_published:", "---", "Text", ""].join("\n");
+    expect(extractPageMeta(raw, "X").published).toBe(true);
+  });
+
   // Wiki.js nennt das Feld `description`; ein aus einem Wiki gezogener Vault traegt es so.
   it("liest die Beschreibung aus `description`", () => {
     const raw = ["---", "description: Aus dem Wiki", "---", "Text", ""].join("\n");

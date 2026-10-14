@@ -57,7 +57,7 @@ describe("WikiClient", () => {
   it("meldet ein fehlgeschlagenes responseResult als Fehler statt es zu verschlucken", async () => {
     reply({ data: { pages: { create: { responseResult: { succeeded: false, message: "Path exists" }, page: null } } } });
     await expect(
-      new WikiClient(OPTS).createPage({ path: "a", title: "T", description: "", tags: [], content: "x" }),
+      new WikiClient(OPTS).createPage({ path: "a", title: "T", description: "", tags: [], content: "x", published: true }),
     ).rejects.toMatchObject({ kind: "graphql", message: expect.stringContaining("Path exists") });
   });
 
@@ -65,8 +65,40 @@ describe("WikiClient", () => {
     reply({
       data: { pages: { create: { responseResult: { succeeded: true }, page: { id: 9, updatedAt: "2026-02-02T00:00:00Z" } } } },
     });
-    const created = await new WikiClient(OPTS).createPage({ path: "a", title: "T", description: "", tags: [], content: "x" });
+    const created = await new WikiClient(OPTS).createPage({ path: "a", title: "T", description: "", tags: [], content: "x", published: true });
     expect(created).toEqual({ id: 9, updatedAt: "2026-02-02T00:00:00Z" });
+  });
+
+  // Die Sichtbarkeit kommt aus der Notiz. Fest verdrahtet (`isPublished: true` im Dokument) nahm
+  // jeder Push eine bewusst depublizierte Seite wieder online.
+  describe("Sichtbarkeit", () => {
+    const sent = () => {
+      const body = ((requestUrl as unknown as MockFn).mock.calls.at(-1)?.[0] as { body: string }).body;
+      return JSON.parse(body) as { query: string; variables: Record<string, unknown> };
+    };
+    const input = { path: "a", title: "T", description: "", tags: [], content: "x" };
+
+    it("createPage reicht published=false als Variable isPublished durch", async () => {
+      reply({ data: { pages: { create: { responseResult: { succeeded: true }, page: { id: 9, updatedAt: "T" } } } } });
+      await new WikiClient(OPTS).createPage({ ...input, published: false });
+      expect(sent().variables.isPublished).toBe(false);
+      expect(sent().query).toContain("isPublished: $isPublished");
+      expect(sent().query).not.toMatch(/isPublished:\s*true/);
+    });
+
+    it("updatePage reicht published=false durch und setzt nie ein festes true", async () => {
+      reply({ data: { pages: { update: { responseResult: { succeeded: true }, page: { updatedAt: "T" } } } } });
+      await new WikiClient(OPTS).updatePage(9, { ...input, published: false });
+      expect(sent().variables.isPublished).toBe(false);
+      expect(sent().query).toContain("isPublished: $isPublished");
+      expect(sent().query).not.toMatch(/isPublished:\s*true/);
+    });
+
+    it("updatePage mit published=true veroeffentlicht", async () => {
+      reply({ data: { pages: { update: { responseResult: { succeeded: true }, page: { updatedAt: "T" } } } } });
+      await new WikiClient(OPTS).updatePage(9, { ...input, published: true });
+      expect(sent().variables.isPublished).toBe(true);
+    });
   });
 
   it("liest fuer den Drift-Guard nur updatedAt", async () => {

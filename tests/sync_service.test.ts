@@ -5,7 +5,7 @@ import type { TransformResult } from "../src/core/transform";
 import type { SlugCollision } from "../src/core/paths";
 
 const meta: TransformResult = {
-  content: "neu", title: "T", description: "", tags: [], unresolved: [], skippedEmbeds: [],
+  content: "neu", title: "T", description: "", tags: [], published: true, unresolved: [], skippedEmbeds: [],
 };
 
 function service(clientOverrides: Record<string, unknown> = {}, storeOverrides: Record<string, unknown> = {}) {
@@ -43,6 +43,19 @@ describe("SyncService.pushOne", () => {
     expect(out).toEqual({ kind: "created" });
     expect(client.createPage).toHaveBeenCalledTimes(1);
     expect(store.save).toHaveBeenCalledWith(expect.objectContaining({ wikiPath: "a", pageId: 5, raw: "roh", pushed: "neu", remoteUpdatedAt: "T2" }));
+  });
+
+  // Sicherheitsrelevant: Eine bewusst depublizierte Seite (private Daten) darf durch einen
+  // spaeteren Push mit Inhaltsaenderung nicht wieder online gehen.
+  it("reicht published=false bei Anlegen UND bei jedem folgenden Update durch", async () => {
+    const hidden = { ...meta, published: false };
+    const { svc, client } = service();
+    await svc.pushOne(entry({ state: "create", pageId: undefined, snapshot: undefined }), hidden, noCollisions);
+    await svc.pushOne(entry({}), hidden, noCollisions);
+    await svc.pushOne(entry({}), { ...hidden, content: "noch neuer" }, noCollisions);
+    const calls = [...client.createPage.mock.calls, ...client.updatePage.mock.calls] as unknown as Array<[...unknown[], { published: boolean }]>;
+    expect(calls).toHaveLength(3);
+    for (const call of calls) expect(call.at(-1)).toMatchObject({ published: false });
   });
 
   it("prueft vor dem Update den Drift-Guard und aktualisiert bei Gleichstand", async () => {
