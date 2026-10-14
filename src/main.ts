@@ -123,7 +123,7 @@ export default class WikijsMaintainerPlugin extends Plugin {
         locale: this.settings.locale,
         timeoutMs: this.settings.timeoutSec * 1000,
       }),
-      store: new SnapshotStore(this.app.vault.adapter, this.manifest.dir ?? ""),
+      store: new SnapshotStore(this.app.vault.adapter, this.manifest.dir ?? "", this.settings.snapshotFolder),
       vault: this.app.vault,
       syncRoot: () => this.settings.syncRoot,
       locale: this.settings.locale,

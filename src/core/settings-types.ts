@@ -13,6 +13,8 @@ export interface WikijsSettings {
   locale: string;
   /** Kommagetrennte Frontmatter-Schluessel, die vor dem Push gesetzt sein muessen. Leer = keine Pruefung. */
   requiredFields: string;
+  /** Vault-Ordner fuer die Snapshots; leer = Plugin-Ordner (reist nicht mit dem Vault). */
+  snapshotFolder: string;
   timeoutSec: number;
 }
 
@@ -26,6 +28,7 @@ export const DEFAULT_SETTINGS: WikijsSettings = {
   syncRoot: "_published",
   locale: "de",
   requiredFields: "",
+  snapshotFolder: "",
   timeoutSec: 30,
 };
 

@@ -6,13 +6,42 @@ import { parseSnapshot, serializeSnapshot, type Snapshot } from "../core/snapsho
 import { snapshotFileName } from "../core/paths";
 
 export class SnapshotStore {
+  private readonly vaultFolder: string;
+
+  /** `folder` leer: Plugin-Ordner (bisheriges Verhalten). Gesetzt: Ordner im Vault, damit die
+   *  Snapshots mit dem Vault auf ein zweites Geraet reisen. */
   constructor(
     private readonly adapter: DataAdapter,
     private readonly pluginDir: string,
-  ) {}
+    folder = "",
+  ) {
+    this.vaultFolder = folder.trim().replace(/^\/+|\/+$/g, "");
+  }
+
+  private get legacyDir(): string {
+    return `${this.pluginDir}/snapshots`;
+  }
 
   private get dir(): string {
-    return `${this.pluginDir}/snapshots`;
+    return this.vaultFolder === "" ? this.legacyDir : this.vaultFolder;
+  }
+
+  /** Beim ersten Laden mit neuem Ordner: Snapshots aus dem Plugin-Ordner kopieren (nicht
+   *  verschieben), sonst stuende der gesamte Bestand nach dem Umstellen auf `occupied`. Nur wenn
+   *  der Zielordner noch keinen Snapshot traegt — ein dort vorhandener Stand gewinnt. */
+  private async adoptLegacy(): Promise<void> {
+    if (this.vaultFolder === "") return;
+    if (await this.adapter.exists(this.dir)) {
+      const present = await this.adapter.list(this.dir);
+      if (present.files.some((f) => f.endsWith(".json"))) return;
+    }
+    if (!(await this.adapter.exists(this.legacyDir))) return;
+    const legacy = (await this.adapter.list(this.legacyDir)).files.filter((f) => f.endsWith(".json"));
+    if (legacy.length === 0) return;
+    if (!(await this.adapter.exists(this.dir))) await this.adapter.mkdir(this.dir);
+    for (const file of legacy) {
+      await this.adapter.write(`${this.dir}/${file.slice(file.lastIndexOf("/") + 1)}`, await this.adapter.read(file));
+    }
   }
 
   private pathFor(wikiPath: string): string {
@@ -20,6 +49,7 @@ export class SnapshotStore {
   }
 
   async loadAll(): Promise<Snapshot[]> {
+    await this.adoptLegacy();
     if (!(await this.adapter.exists(this.dir))) return [];
     const listing = await this.adapter.list(this.dir);
     const out: Snapshot[] = [];

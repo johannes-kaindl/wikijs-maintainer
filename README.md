@@ -73,6 +73,7 @@ Open the plugin's settings tab and fill in:
   `_published`). Its structure maps 1:1 onto wiki paths:
   `_published/Network/DNS-Setup.md` becomes `network/dns-setup`. Moving a note
   into this folder is a publication decision.
+- **Snapshot folder** — where the sync snapshots live. Empty (default): the plugin folder, which does not travel with your vault; a vault folder such as `.wikijs-snapshots` lets a second device open the same vault with a clean plan
 - **Required frontmatter fields** — comma-separated keys every page must carry before it is pushed (empty by default). A page missing one shows as blocked with the field name in the status view, and *Push all changes* skips it
 - **Wiki locale** — the Wiki.js locale of the pages this plugin manages: new pages are created in it, pages of other locales are ignored
   (default `de`).
