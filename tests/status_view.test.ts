@@ -8,10 +8,14 @@ import { WorkspaceLeaf } from "obsidian";
 import { notices } from "./helpers/mock-types";
 import { defineStrings, setLang, t } from "../src/vendor/kit/i18n";
 import { STRINGS } from "../src/i18n/strings";
+import { confirmAction } from "../src/vendor/kit-obsidian/confirm";
 import { WikijsStatusView } from "../src/obsidian/status-view";
 import type { SyncEntry } from "../src/core/sync-plan";
 import type { TransformResult } from "../src/core/transform";
 import type { BuiltPlan, SyncService } from "../src/obsidian/sync-service";
+
+// Das Confirm-Modal oeffnet in der Testumgebung kein echtes Fenster; die Antwort steuert der Test.
+vi.mock("../src/vendor/kit-obsidian/confirm", () => ({ confirmAction: vi.fn(() => Promise.resolve(true)) }));
 
 beforeAll(() => {
   defineStrings(STRINGS);
@@ -19,6 +23,8 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  vi.mocked(confirmAction).mockClear();
+  vi.mocked(confirmAction).mockResolvedValue(true);
   notices.length = 0;
 });
 
@@ -589,3 +595,78 @@ describe("WikijsStatusView — refresh() ist serialisiert", () => {
     expect(view.contentEl.querySelectorAll(".wikijs-collision")).toHaveLength(0);
   });
 });
+
+// Funktions-Inventur 2026-10-07 (Befunde fuer dieses Plugin): Sackgasse bei Fehler, Leerzustand ohne
+// Einstieg, Zustand nur als Text, "Snapshot verwerfen" ohne Rueckfrage.
+describe("WikijsStatusView — Inventur-Befunde", () => {
+  const plan = (entries: SyncEntry[]): BuiltPlan => ({ entries, meta: new Map(), collisions: [], ambiguousNames: [] });
+
+  it("Fehler beim Plan: benannte Meldung (describeError) UND ein Aktualisieren-Knopf statt einer Sackgasse", async () => {
+    const rejected = Object.assign(new Error("Forbidden"), { kind: "auth" });
+    const service = { buildPlan: vi.fn().mockRejectedValue(rejected) } as unknown as SyncService;
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    expect(String(view.contentEl.textContent ?? "")).toContain(t("notice.authFailed"));
+    expect(String(view.contentEl.textContent ?? "")).not.toContain("Forbidden");
+    const rows = view.contentEl.querySelectorAll(".setting-item") as unknown as any[];
+    const refresh = rows.flatMap((r) => r.__setting?.components ?? []).find((c: any) => c.textValue === t("view.refresh"));
+    expect(refresh).toBeDefined();
+    // Der Knopf versucht es wirklich erneut.
+    await refresh.clickCB();
+    expect((service.buildPlan as any).mock.calls.length).toBe(2);
+  });
+
+  it("Leerzustand ohne jede Seite sagt, wie man eine veroeffentlicht", async () => {
+    const container = await renderPlan(plan([]));
+    expect(container.querySelector(".wikijs-empty")?.textContent).toBe(t("view.empty.none"));
+  });
+
+  it("Leerzustand bei lauter unveraenderten Seiten sagt 'alles synchron' und nennt den Schalter", async () => {
+    const container = await renderPlan(plan([entry("a/ok", "unchanged")]));
+    expect(container.querySelector(".wikijs-empty")?.textContent).toBe(t("view.empty.synced"));
+  });
+
+  it("jede Zeile traegt einen Status-Indikator: Icon, Zustandsklasse und aria-label (nicht nur Text)", async () => {
+    const container = await renderPlan(
+      plan([entry("a/gleich", "unchanged"), entry("a/neu", "update"), entry("a/belegt", "occupied")]),
+    );
+    const byRow = (name: string) => findRow(container, name).controlEl.querySelector(".wikijs-status");
+    const expectIndicator = (name: string, kind: string, icon: string, label: string) => {
+      const el = byRow(name);
+      expect(el, name).not.toBeNull();
+      expect(el.classList.contains(`is-${kind}`) || String(el.className).includes(`is-${kind}`), name).toBe(true);
+      expect(el.getAttribute("data-icon"), name).toBe(icon);
+      expect(el.getAttribute("aria-label"), name).toBe(label);
+    };
+    // "unchanged" wird erst mit "Show unchanged" gelistet: den Schalter setzen wir hier nicht,
+    // die beiden anderen Zeilen belegen die Vokabel.
+    expectIndicator("a/neu", "warning", "alert-triangle", t("status.update"));
+    expectIndicator("a/belegt", "error", "circle-x", t("status.occupied"));
+  });
+
+  it("eine Kollision macht den Indikator zum Fehler, auch wenn der Zustand nur 'create' ist", async () => {
+    const wikiPath = "a/koll";
+    const container = await renderPlan({
+      entries: [entry(wikiPath, "create")],
+      meta: new Map([[wikiPath, meta()]]),
+      collisions: [{ wikiPath, vaultPaths: ["A.md", "a.md"] }],
+      ambiguousNames: [],
+    });
+    expect(String(findRow(container, wikiPath).controlEl.querySelector(".wikijs-status").className)).toContain("is-error");
+  });
+
+  it("Snapshot verwerfen fragt zuerst; bei 'Abbrechen' passiert nichts", async () => {
+    const wikiPath = "a/stale-confirm";
+    vi.mocked(confirmAction).mockResolvedValue(false);
+    const service = {
+      buildPlan: vi.fn().mockResolvedValue(plan([entry(wikiPath, "stale-snapshot")])),
+      forgetSnapshot: vi.fn().mockResolvedValue({ kind: "forgotten" }),
+    } as unknown as SyncService;
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await view.onOpen();
+    await clickButton(findRow(view.contentEl, wikiPath), t("view.forget"));
+    expect(confirmAction).toHaveBeenCalledTimes(1);
+    expect(service.forgetSnapshot).not.toHaveBeenCalled();
+  });
+});
+

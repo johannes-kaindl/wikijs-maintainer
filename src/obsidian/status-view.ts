@@ -1,7 +1,8 @@
 // Status-Ansicht: die eine Stelle, an der der Nutzer den Plan sieht, bevor er ihn
 // ausfuehrt. Sie rechnet nichts aus — planSync() hat das getan.
-import { ItemView, Notice, Setting, type WorkspaceLeaf } from "obsidian";
-import { statusLabelKey, type SyncEntry } from "../core/sync-plan";
+import { ItemView, Notice, Setting, setIcon, type WorkspaceLeaf } from "obsidian";
+import { statusKind, statusLabelKey, type StatusKind, type SyncEntry } from "../core/sync-plan";
+import { confirmAction } from "../vendor/kit-obsidian/confirm";
 import { t } from "../vendor/kit/i18n";
 import { describeAdopt, describeError, describeOutcome, describePullOutcome } from "./describe-outcome";
 import type { BuiltPlan, SyncService } from "./sync-service";
@@ -15,6 +16,9 @@ const PUSHABLE = new Set(["create", "update", "conflict"]);
 // aus Task 14) -- ein Knopf dafuer waere sichtbar wirkungslos. Insbesondere
 // "conflict" und "removed-locally" bekommen deshalb KEINEN Pull-Knopf.
 const PULLABLE = new Set(["remote-changed", "new-remote"]);
+
+/** Feste Icon-Vokabel des Status-Indikators (UI-STANDARD § 8): Form UND Farbe UND Klasse UND aria-label. */
+const INDICATOR_ICON: Record<StatusKind, string> = { ok: "circle-check", warning: "alert-triangle", error: "circle-x" };
 
 export class WikijsStatusView extends ItemView {
   private showUnchanged = false;
@@ -58,7 +62,14 @@ export class WikijsStatusView extends ItemView {
       if (run !== this.run) return;
       container.empty();
       container.createEl("h3", { text: t("view.title") });
-      container.createEl("p", { text: t("notice.error", err instanceof Error ? err.message : String(err)) });
+      // Kein Sackgassen-Zustand: dieselbe Einstufung wie die Commands (describeError nennt bei
+      // einem abgelehnten Schluessel den Schluessel), dazu ein Knopf, der es erneut versucht.
+      const box = container.createDiv({ cls: "wikijs-error" });
+      this.addIndicator(box, "error", t("view.error"));
+      box.createSpan({ text: describeError(err) });
+      new Setting(container)
+        .setName(t("view.error"))
+        .addButton((b) => b.setButtonText(t("view.refresh")).setCta().onClick(() => void this.refresh()));
       return;
     }
     if (run !== this.run) return;
@@ -99,13 +110,31 @@ export class WikijsStatusView extends ItemView {
     }
 
     const entries = plan.entries.filter((e) => this.showUnchanged || e.state !== "unchanged");
-    if (entries.length === 0) container.createEl("p", { text: t("view.empty") });
+    if (entries.length === 0) {
+      // Leerzustand mit Einstieg (UI-STANDARD § 8): sagt, ob es nichts gibt oder nur nichts zu tun ist.
+      container.createEl("p", {
+        cls: "wikijs-empty",
+        text: plan.entries.length === 0 ? t("view.empty.none") : t("view.empty.synced"),
+      });
+    }
 
     for (const entry of entries) this.renderRow(container, entry, plan, blocked.has(entry.wikiPath));
   }
 
+  /** Status-Indikator (UI-STANDARD § 8): Icon aus der festen Vokabel, Zustandsklasse `is-*`,
+   *  `aria-label` mit dem Zustand als Text. */
+  private addIndicator(parent: HTMLElement, kind: StatusKind, label: string): void {
+    const el = parent.createSpan({ cls: `wikijs-status is-${kind}` });
+    setIcon(el, INDICATOR_ICON[kind]);
+    el.setAttribute("aria-label", label);
+    el.setAttribute("title", label);
+  }
+
   private renderRow(container: HTMLElement, entry: SyncEntry, plan: BuiltPlan, isBlocked: boolean): void {
     const row = new Setting(container).setName(entry.wikiPath).setDesc(t(statusLabelKey(entry.state)));
+    // Zustandsanzeige mit Form UND Farbe (Icon + Klasse + aria-label), nicht nur als Text.
+    const blockedByMeta = (plan.meta.get(entry.wikiPath)?.missing.length ?? 0) > 0 && PUSHABLE.has(entry.state);
+    this.addIndicator(row.controlEl, isBlocked || blockedByMeta ? "error" : statusKind(entry.state), t(statusLabelKey(entry.state)));
     if (isBlocked) {
       // Beides, nicht nur die Kollision: der Zustand sagt, was ohne sie passieren wuerde
       // — bis 2026-08-14 ersetzte der Hinweis ihn und nahm dem Nutzer diese Information.
@@ -184,6 +213,13 @@ export class WikijsStatusView extends ItemView {
    *  letzten Refresh zu handeln — ein Snapshot kann zwischen Anzeige und Klick wieder
    *  eine Seite bekommen haben (z.B. weil die Notiz zurueckkam). */
   private async handleForget(wikiPath: string): Promise<void> {
+    const go = await confirmAction(this.app, {
+      title: t("confirm.forget.title"),
+      message: t("confirm.forget.body", wikiPath),
+      confirmLabel: t("confirm.forget.ok"),
+      cancelLabel: t("confirm.cancel"),
+    });
+    if (!go) return;
     try {
       const service = this.service();
       const freshPlan = await service.buildPlan();

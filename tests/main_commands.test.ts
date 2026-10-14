@@ -9,6 +9,7 @@
 //  - pushAll haengt jetzt eine eigene Report-Zeile fuer Depublizieren/Loeschen an.
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type TFile } from "obsidian";
+import { confirmAction } from "../src/vendor/kit-obsidian/confirm";
 import { makeFile, makeManifest, notices } from "./helpers/mock-types";
 import { defineStrings, setLang, t } from "../src/vendor/kit/i18n";
 import { STRINGS } from "../src/i18n/strings";
@@ -16,12 +17,17 @@ import { DEFAULT_SETTINGS } from "../src/core/settings-types";
 import WikijsMaintainerPlugin from "../src/main";
 import { formatReport } from "../src/obsidian/format-report";
 
+// Das Confirm-Modal oeffnet in der Testumgebung kein Fenster; die Antwort steuert der Test.
+vi.mock("../src/vendor/kit-obsidian/confirm", () => ({ confirmAction: vi.fn(() => Promise.resolve(true)) }));
+
 beforeAll(() => {
   defineStrings(STRINGS);
   setLang("en");
 });
 
 beforeEach(() => {
+  vi.mocked(confirmAction).mockClear();
+  vi.mocked(confirmAction).mockResolvedValue(true);
   notices.length = 0;
 });
 
@@ -325,3 +331,67 @@ describe("Command-Registrierung", () => {
     }
   });
 });
+
+// Funktions-Inventur 2026-10-07: "Push all changes" lief ohne Rueckfrage; kein "Verbindung testen".
+describe("pushAll — Rueckfrage vor der Sammelaktion", () => {
+  const plan = (states: string[]) => ({
+    entries: states.map((state, i) => ({ wikiPath: `p${i}`, state })),
+    meta: new Map(states.map((_s, i) => [`p${i}`, {}])),
+    collisions: [],
+    ambiguousNames: [],
+  });
+  const report = { created: 1, updated: 0, blocked: 0, skipped: 0, removed: 0, unresolvedLinks: 0, skippedEmbeds: 0, errors: [] };
+
+  it("fragt mit der Zahl der Seiten und pusht erst nach Bestaetigung", async () => {
+    const plugin = makePlugin(true);
+    const pushAll = vi.fn(() => Promise.resolve(report));
+    fakeService(plugin, { buildPlan: () => Promise.resolve(plan(["create", "update", "unchanged"])), pushAll });
+    await (plugin as unknown as { pushAll(): Promise<void> }).pushAll();
+    expect(confirmAction).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(confirmAction).mock.calls[0]?.[1].message).toBe(t("confirm.pushAll.body", 2, "https://wiki.example.org"));
+    expect(pushAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("pusht NICHT, wenn der Nutzer abbricht", async () => {
+    const plugin = makePlugin(true);
+    vi.mocked(confirmAction).mockResolvedValue(false);
+    const pushAll = vi.fn(() => Promise.resolve(report));
+    fakeService(plugin, { buildPlan: () => Promise.resolve(plan(["update"])), pushAll });
+    await (plugin as unknown as { pushAll(): Promise<void> }).pushAll();
+    expect(pushAll).not.toHaveBeenCalled();
+  });
+
+  it("fragt nicht, wenn nichts zu pushen ist", async () => {
+    const plugin = makePlugin(true);
+    const pushAll = vi.fn(() => Promise.resolve(report));
+    fakeService(plugin, { buildPlan: () => Promise.resolve(plan(["unchanged", "remote-changed"])), pushAll });
+    await (plugin as unknown as { pushAll(): Promise<void> }).pushAll();
+    expect(confirmAction).not.toHaveBeenCalled();
+    expect(pushAll).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("testConnection", () => {
+  it("ohne URL/Key nur der Hinweis, keine Anfrage", async () => {
+    const plugin = makePlugin(false);
+    await plugin.testConnection();
+    expect(noticeTexts()).toEqual([t("notice.noUrl")]);
+  });
+
+  it("meldet die Seitenzahl der eingestellten Sprache", async () => {
+    const plugin = makePlugin(true);
+    (plugin as unknown as { buildClient(): unknown }).buildClient = () => ({ listPages: () => Promise.resolve([{}, {}, {}]) });
+    await plugin.testConnection();
+    expect(noticeTexts()).toEqual([t("notice.connected", 3, plugin.settings.locale)]);
+  });
+
+  it("uebersetzt einen abgelehnten Schluessel statt 'Forbidden' zu zeigen", async () => {
+    const plugin = makePlugin(true);
+    (plugin as unknown as { buildClient(): unknown }).buildClient = () => ({
+      listPages: () => Promise.reject(Object.assign(new Error("Forbidden"), { kind: "auth" })),
+    });
+    await plugin.testConnection();
+    expect(noticeTexts()).toEqual([t("notice.authFailed")]);
+  });
+});
+

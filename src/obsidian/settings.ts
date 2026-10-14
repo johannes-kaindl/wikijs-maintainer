@@ -46,7 +46,7 @@ export class WikijsSettingsTab extends PluginSettingTab {
       {
         name: t("settings.url"),
         desc: t("settings.url.desc"),
-        control: { type: "text", key: "baseUrl", placeholder: "https://wiki.example.org" },
+        control: { type: "text", key: "baseUrl", placeholder: t("settings.url.placeholder") },
       },
       {
         name: t("settings.key"),
@@ -73,17 +73,25 @@ export class WikijsSettingsTab extends PluginSettingTab {
       {
         name: t("settings.snapshots"),
         desc: t("settings.snapshots.desc"),
-        control: { type: "text", key: "snapshotFolder", placeholder: ".wikijs-snapshots" },
+        control: { type: "text", key: "snapshotFolder", placeholder: t("settings.snapshots.placeholder") },
       },
       {
         name: t("settings.requiredFields"),
         desc: t("settings.requiredFields.desc"),
-        control: { type: "text", key: "requiredFields", placeholder: "seitentyp, pruefzyklus" },
+        control: { type: "text", key: "requiredFields", placeholder: t("settings.requiredFields.placeholder") },
       },
       {
         name: t("settings.locale"),
         desc: t("settings.locale.desc"),
-        control: { type: "text", key: "locale", placeholder: "de" },
+        control: { type: "text", key: "locale", placeholder: t("settings.locale.placeholder") },
+      },
+      {
+        name: t("settings.test"),
+        desc: t("settings.test.desc"),
+        aliases: ["connection", "verbindung", "test", "ping"],
+        render: (setting: Setting) => {
+          setting.addButton((b) => b.setButtonText(t("settings.test.button")).onClick(() => void this.plugin.testConnection()));
+        },
       },
       {
         name: t("settings.timeout"),

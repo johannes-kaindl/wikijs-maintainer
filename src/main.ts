@@ -14,6 +14,7 @@ import { describeError, describeOutcome, describePullOutcome } from "./obsidian/
 import { formatReport } from "./obsidian/format-report";
 import { loadApiKey, persistApiKey } from "./core/api-key-storage";
 import { obsidianSecretStore } from "./vendor/kit-obsidian/secrets";
+import { confirmAction } from "./vendor/kit-obsidian/confirm";
 
 /** Einstiegspunkt. Bewusst duenn: Commands und Wiring kommen mit den
  *  Plan-Tasks hinzu, die Fachlogik lebt in `src/core/`. */
@@ -115,14 +116,33 @@ export default class WikijsMaintainerPlugin extends Plugin {
   // Der Dienst wird pro Aktion frisch gebaut, nicht im onload einmal — die
   // Settings koennen sich zwischen zwei Commands geaendert haben, und ein
   // Client mit veralteter URL schriebe sonst ins vorige Wiki.
+  private buildClient(): WikiClient {
+    return new WikiClient({
+      baseUrl: this.settings.baseUrl,
+      token: this.settings.apiKey,
+      locale: this.settings.locale,
+      timeoutMs: this.settings.timeoutSec * 1000,
+    });
+  }
+
+  /** "Verbindung testen" im Einstellungs-Tab: listet die Seiten der eingestellten Sprache. Prueft
+   *  damit URL, Schluessel und Erreichbarkeit in einem Zug; Fehler laufen durch `describeError`. */
+  async testConnection(): Promise<void> {
+    if (!this.hasCredentials()) {
+      new Notice(t("notice.noUrl"));
+      return;
+    }
+    try {
+      const pages = await this.buildClient().listPages();
+      new Notice(t("notice.connected", pages.length, this.settings.locale));
+    } catch (err) {
+      new Notice(describeError(err));
+    }
+  }
+
   private buildService(): SyncService {
     return new SyncService({
-      client: new WikiClient({
-        baseUrl: this.settings.baseUrl,
-        token: this.settings.apiKey,
-        locale: this.settings.locale,
-        timeoutMs: this.settings.timeoutSec * 1000,
-      }),
+      client: this.buildClient(),
       store: new SnapshotStore(this.app.vault.adapter, this.manifest.dir ?? "", this.settings.snapshotFolder),
       vault: this.app.vault,
       syncRoot: () => this.settings.syncRoot,
@@ -196,6 +216,20 @@ export default class WikijsMaintainerPlugin extends Plugin {
     try {
       const service = this.buildService();
       const plan = await service.buildPlan();
+      // Rueckfrage vor der folgenreichen Sammelaktion: nur wenn wirklich etwas geschrieben wuerde.
+      const pending = plan.entries.filter(
+        (e) => (e.state === "create" || e.state === "update" || e.state === "conflict") && plan.meta.get(e.wikiPath) !== undefined,
+      ).length;
+      if (pending > 0) {
+        const go = await confirmAction(this.app, {
+          title: t("confirm.pushAll.title"),
+          message: t("confirm.pushAll.body", pending, this.settings.baseUrl),
+          confirmLabel: t("confirm.pushAll.ok"),
+          cancelLabel: t("confirm.cancel"),
+          warning: false,
+        });
+        if (!go) return;
+      }
       const report = await service.pushAll(plan);
       new Notice(formatReport(report));
     } catch (err) {

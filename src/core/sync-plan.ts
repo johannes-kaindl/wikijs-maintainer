@@ -129,6 +129,28 @@ const STATUS_LABEL_KEY: Record<SyncState, string> = {
   unchanged: "status.unchanged",
 };
 
+/** Grobe Einordnung eines Zustands fuer den Status-Indikator (UI-STANDARD § 8): `ok` = nichts zu
+ *  tun, `warning` = eine Aktion steht an, `error` = blockiert oder widerspruechlich. Als `Record`
+ *  ueber die Union, damit ein neuer Zustand den Build bricht statt ohne Indikator zu erscheinen. */
+export type StatusKind = "ok" | "warning" | "error";
+
+const STATUS_KIND: Record<SyncState, StatusKind> = {
+  create: "warning",
+  update: "warning",
+  "remote-changed": "warning",
+  conflict: "error",
+  occupied: "error",
+  "removed-locally": "warning",
+  "remote-deleted": "error",
+  "new-remote": "warning",
+  "stale-snapshot": "warning",
+  unchanged: "ok",
+};
+
+export function statusKind(state: SyncState): StatusKind {
+  return STATUS_KIND[state];
+}
+
 export function statusLabelKey(state: SyncState): string {
   return STATUS_LABEL_KEY[state];
 }

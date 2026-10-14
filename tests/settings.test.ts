@@ -38,7 +38,7 @@ describe("WikijsSettingsTab", () => {
     // Das erste Element ist die Hilfe-Zeile (Render-Hatch ohne control, tests/help-row.test.ts).
     const keys = tab.getSettingDefinitions().slice(1).map((item) => (item as { control?: { key?: string } }).control?.key);
     // Der API-Schluessel ist eine render-Hatch (Maskierung) und traegt deshalb kein `control.key`.
-    expect(keys).toEqual(["baseUrl", undefined, "syncRoot", "snapshotFolder", "requiredFields", "locale", "timeoutSec"]);
+    expect(keys).toEqual(["baseUrl", undefined, "syncRoot", "snapshotFolder", "requiredFields", "locale", undefined, "timeoutSec"]);
   });
 
   // Der Schluessel stand bis Welle 11 im Klartext im Feld (Screenshot, Bildschirmfreigabe).
@@ -128,4 +128,36 @@ describe("STRINGS", () => {
       }
     }
   });
+
+  // Funktions-Inventur 2026-10-07: kein "Verbindung testen".
+  describe("Verbindung testen", () => {
+    type Zeile = { name?: string; render?: (s: Setting) => unknown };
+    it("hat eine Zeile mit Knopf, der testConnection() des Plugins ruft", async () => {
+      const testConnection = vi.fn().mockResolvedValue(undefined);
+      const saveSettings = vi.fn();
+      const plugin = { settings: { ...DEFAULT_SETTINGS }, saveSettings, testConnection } as unknown as WikijsMaintainerPlugin;
+      const tab = new WikijsSettingsTab(new App(), plugin);
+      const zeile = (tab.getSettingDefinitions() as Zeile[]).find((d) => d.name === t("settings.test"));
+      expect(zeile?.render).toBeDefined();
+      const setting = new Setting({} as never);
+      zeile?.render?.(setting);
+      const button = (setting as unknown as { components: Array<{ textValue?: string; clickCB?: () => unknown }> }).components[0];
+      expect(button?.textValue).toBe(t("settings.test.button"));
+      await button?.clickCB?.();
+      expect(testConnection).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("Platzhalter kommen aus den Strings, nicht aus dem Code", () => {
+    const tab = new WikijsSettingsTab(new App(), { settings: { ...DEFAULT_SETTINGS }, saveSettings: vi.fn() } as unknown as WikijsMaintainerPlugin);
+    const placeholders = tab.getSettingDefinitions().flatMap((d) => {
+      const c = (d as { control?: { placeholder?: string } }).control;
+      return c?.placeholder === undefined ? [] : [c.placeholder];
+    });
+    expect(placeholders).toEqual([
+      t("settings.url.placeholder"), t("settings.snapshots.placeholder"),
+      t("settings.requiredFields.placeholder"), t("settings.locale.placeholder"),
+    ]);
+  });
 });
+
