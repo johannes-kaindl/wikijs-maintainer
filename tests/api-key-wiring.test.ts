@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import WikijsMaintainerPlugin from "../src/main";
-import { API_KEY_SECRET_ID } from "../src/core/api-key-storage";
+import { API_KEY_SECRET_ID } from "../src/core/settings-types";
 
-// Verdrahtung von loadApiKey/persistApiKey in main.ts: Migration beim Laden, Verteilung beim
-// Speichern. Die reine Logik testet api-key-storage.test.ts; hier geht es darum, dass das Plugin
+// Verdrahtung von loadSecretValue/persistSecretValue (code-kit secret-value) in main.ts: Migration
+// beim Laden, Verteilung beim Speichern. Die reine Logik testet das Kit; hier geht es darum, dass das Plugin
 // sie an BEIDEN Stellen aufruft und der Speicherwert dabei unangetastet bleibt — die Netzwege
 // lesen `settings.apiKey` aus dem Speicher.
 
@@ -55,6 +55,49 @@ describe("API-Schluessel: Verdrahtung in main.ts", () => {
     await p.saveSettings();
     expect(p.settings.apiKey).toBe("sk-neu");
     expect(kc.values.get(API_KEY_SECRET_ID)).toBe("sk-neu");
+    expect((p.gespeichert() as { apiKey: string }).apiKey).toBe("");
+  });
+});
+
+// Verhalten, das mit dem Wechsel auf das Kit-Modul dazukam oder sich geaendert hat.
+describe("API-Schluessel: Kit-Modul secret-value", () => {
+  it("ein Schluesselbund, der den Wert verwirft, laesst ihn in data.json stehen (Klartext mit Warnung, kein Verlust)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const leaky = { getSecret: () => null, setSecret: () => undefined, listSecrets: () => [] };
+    const p = plugin({ secretStorage: leaky }, null);
+    await p.onload();
+    p.settings.apiKey = "sk-1";
+    await p.saveSettings();
+    expect((p.gespeichert() as { apiKey: string }).apiKey).toBe("sk-1");
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("ohne Schluesselbund (alte Obsidian-Version) bleibt der Wert in data.json und geht nirgends verloren", async () => {
+    const p = plugin({}, { apiKey: "sk-alt" });
+    await p.onload();
+    expect(p.settings.apiKey).toBe("sk-alt");
+    expect((p.gespeichert() as { apiKey: string }).apiKey).toBe("sk-alt");
+  });
+
+  it("Zeilenumbrueche im Schluessel werden entfernt (wie der Schluesselbund es tut), Leerzeichen bleiben", async () => {
+    const kc = keychain();
+    const p = plugin({ secretStorage: kc.storage }, null);
+    await p.onload();
+    p.settings.apiKey = "sk-1\r\n";
+    await p.saveSettings();
+    expect(p.settings.apiKey).toBe("sk-1");
+    expect(kc.values.get(API_KEY_SECRET_ID)).toBe("sk-1");
+  });
+
+  it("Leeren des Feldes raeumt den Schluesselbund-Eintrag", async () => {
+    const kc = keychain();
+    kc.values.set(API_KEY_SECRET_ID, "sk-bund");
+    const p = plugin({ secretStorage: kc.storage }, { apiKey: "" });
+    await p.onload();
+    p.settings.apiKey = "";
+    await p.saveSettings();
+    expect(kc.values.get(API_KEY_SECRET_ID)).toBe("");
     expect((p.gespeichert() as { apiKey: string }).apiKey).toBe("");
   });
 });

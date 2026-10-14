@@ -13,8 +13,9 @@ import { askImport } from "./obsidian/import-modal";
 import { WikijsStatusView, VIEW_TYPE_WIKIJS_STATUS } from "./obsidian/status-view";
 import { describeError, describeOutcome, describePullOutcome } from "./obsidian/describe-outcome";
 import { formatImportReport, formatReport } from "./obsidian/format-report";
-import { loadApiKey, persistApiKey } from "./core/api-key-storage";
-import { obsidianSecretStore } from "./vendor/kit-obsidian/secrets";
+import { API_KEY_SECRET_ID } from "./core/settings-types";
+import { loadSecretValue, persistSecretValue } from "./vendor/kit/secret-value";
+import { obsidianSecretStore, secretStorageAvailable } from "./vendor/kit-obsidian/secrets";
 import { confirmAction } from "./vendor/kit-obsidian/confirm";
 
 /** Einstiegspunkt. Bewusst duenn: Commands und Wiring kommen mit den
@@ -34,9 +35,10 @@ export default class WikijsMaintainerPlugin extends Plugin {
     // 1.11.4), nicht in data.json (Klartext, wandert mit jedem Vault-Sync). Ein Altwert aus
     // data.json wird beim ersten Laden hinuebergeschrieben und dort geleert; im Speicher steht
     // er weiterhin, damit die Netzwege ihn wie bisher unter `settings.apiKey` finden.
-    const apiKeyLoad = loadApiKey(this.settings.apiKey, obsidianSecretStore(this.app));
-    this.settings.apiKey = apiKeyLoad.apiKey;
-    if (apiKeyLoad.migrate) await this.saveSettings();
+    const apiKeyLoad = loadSecretValue(this.settings.apiKey, this.secretStore(), API_KEY_SECRET_ID);
+    this.settings.apiKey = apiKeyLoad.value;
+    if (apiKeyLoad.error !== undefined) console.warn(`wikijs-maintainer: API key stays in data.json — ${apiKeyLoad.error}`);
+    if (apiKeyLoad.dirty) await this.saveSettings();
     this.addSettingTab(new WikijsSettingsTab(this.app, this));
 
     // Dienst wird pro Leaf frisch via buildService() erzeugt (s. Kommentar dort) --
@@ -86,12 +88,20 @@ export default class WikijsMaintainerPlugin extends Plugin {
     });
   }
 
+  /** Der Schluesselbund, oder `null`, wenn diese Obsidian-Version keinen hat (der Wert bleibt dann in data.json). */
+  private secretStore(): ReturnType<typeof obsidianSecretStore> | null {
+    return secretStorageAvailable(this.app) ? obsidianSecretStore(this.app) : null;
+  }
+
   async saveSettings(): Promise<void> {
-    // Schluessel in den Schluesselbund, data.json ohne ihn — das Speicherobjekt bleibt
-    // unangetastet (die Netzwege lesen daraus). Verwirft der Schluesselbund den Wert,
-    // liefert persistApiKey ihn fuer data.json zurueck (Klartext mit Warnung, kein Verlust).
-    const storedApiKey = persistApiKey(this.settings.apiKey, obsidianSecretStore(this.app), (m) => console.warn(m));
-    await this.saveData({ ...this.settings, apiKey: storedApiKey });
+    // Schluessel in den Schluesselbund, data.json ohne ihn — im Speicher bleibt der Wert (die
+    // Netzwege lesen daraus; nur Zeilenumbrueche sind entfernt, wie der Schluesselbund sie entfernt).
+    // Verwirft der Schluesselbund den Wert, liefert `persisted` ihn fuer data.json zurueck
+    // (Klartext mit Warnung, kein Verlust).
+    const stored = persistSecretValue(this.settings.apiKey, this.secretStore(), API_KEY_SECRET_ID);
+    this.settings.apiKey = stored.value;
+    if (stored.error !== undefined) console.warn(`wikijs-maintainer: API key ${stored.state === "kept" ? "stays in data.json" : "could not be updated"} — ${stored.error}`);
+    await this.saveData({ ...this.settings, apiKey: stored.persisted });
   }
 
   // Minor-Befund „Verwaister i18n-Schluessel notice.noUrl": ohne Wiki-URL/API-Key baut

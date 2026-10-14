@@ -18,6 +18,9 @@ export interface WikijsSettings {
   timeoutSec: number;
 }
 
+/** Feste ID des Schluesselbund-Eintrags: lowercase-alphanumerisch mit Bindestrichen, wie SecretStorage sie verlangt. */
+export const API_KEY_SECRET_ID = "wikijs-maintainer-api-key";
+
 export const TIMEOUT_SEC_MIN = 5;
 export const TIMEOUT_SEC_MAX = 120;
 export const TIMEOUT_SEC_STEP = 5;

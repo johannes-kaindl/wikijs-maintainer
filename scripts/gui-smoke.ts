@@ -60,7 +60,7 @@ import { startWikiStub, type RunningWikiStub } from "./demo-wikijs.js";
 
 const PLUGIN_ID = "wikijs-maintainer";
 const STATUS_VIEW = "wikijs-status";
-/** Feste ID des Schlüsselbund-Eintrags (`src/core/api-key-storage.ts`). */
+/** Feste ID des Schlüsselbund-Eintrags (`API_KEY_SECRET_ID` in `src/core/settings-types.ts`). */
 const API_KEY_SECRET_ID = "wikijs-maintainer-api-key";
 
 /** Alle Wiki-Pfade und Vault-Dateien des Smokes tragen dieses Präfix. Das ist die

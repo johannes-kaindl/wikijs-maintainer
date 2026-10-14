@@ -106,7 +106,7 @@ eigener Release-Takt, Release-Infra über Skill `plugin-release-setup`, Test-Set
 
 Vendored aus `../obsidian-kit` (verbatim, Re-Sync über `tools/sync-kit.sh`, nie von
 Hand editieren): `settings`, `i18n`, `timeout`, `frontmatter`, `diff` (pure) sowie
-`clock`, `confirm`, `folder-suggest`, `settings_walker`, `secrets` (obsidian; API-Schlüssel im Schlüsselbund seit 0.3.0, Logik in `src/core/api-key-storage.ts`, übernommen aus yijing-oracle) und
+`clock`, `confirm`, `folder-suggest`, `settings_walker`, `secrets` (obsidian; API-Schlüssel im Schlüsselbund seit 0.3.0, Logik seit Welle 22 im code-kit-Modul `secret-value`, `loadSecretValue`/`persistSecretValue` in `src/main.ts`; die frühere Eigenfassung `src/core/api-key-storage.ts` ist entfallen), `slug` (Wiki-Pfade: `slugify(…, { punctuation: "drop" })`, `slugOf` in `src/core/paths.ts`) und
 `testing/obsidian-mock` (→ `tests/vendor/kit/`).
 `diff` kam am 2026-08-09 als Katalog-Übernahme aus `koda-agent` (damals
 `src/core/diff.ts`); mit Kit 0.27.0 ist die Lösung ins Kit gehoben und seit dem
