@@ -6,7 +6,7 @@ import { STRINGS } from "../src/i18n/strings";
 const ALL: Record<SyncState, true> = {
   create: true, update: true, "remote-changed": true, conflict: true, occupied: true,
   "removed-locally": true, "remote-deleted": true, "new-remote": true,
-  "stale-snapshot": true, unchanged: true,
+  "stale-snapshot": true, moved: true, unchanged: true,
 };
 
 describe("statusLabelKey", () => {

@@ -302,3 +302,46 @@ describe("SyncService.adoptOccupied", () => {
     expect(store.save).not.toHaveBeenCalled();
   });
 });
+
+// pages.move: Id, Historie und URL der Seite bleiben, wenn eine Notiz umbenannt wird.
+describe("SyncService.pushOne — moved", () => {
+  const moved = () =>
+    entry({
+      state: "moved", wikiPath: "neu/pfad", movedFrom: "alt/pfad", pageId: 5,
+      snapshot: { version: 1, wikiPath: "alt/pfad", pageId: 5, raw: "roh", pushed: "alt-t", remoteUpdatedAt: "T1" },
+    });
+
+  it("verschiebt die Seite (Id bleibt), schreibt den Snapshot unter dem neuen Pfad und entfernt den alten", async () => {
+    const movePage = vi.fn(() => Promise.resolve());
+    const { svc, client, store } = service({ movePage, fetchUpdatedAt: vi.fn().mockResolvedValueOnce("T1").mockResolvedValueOnce("T7") });
+    const out = await svc.pushOne(moved(), meta, noCollisions);
+    expect(out).toEqual({ kind: "moved" });
+    expect(movePage).toHaveBeenCalledWith(5, "neu/pfad");
+    expect(store.save).toHaveBeenCalledWith({ version: 1, wikiPath: "neu/pfad", pageId: 5, raw: "roh", pushed: "alt-t", remoteUpdatedAt: "T7" });
+    expect(store.remove).toHaveBeenCalledWith("alt/pfad");
+    expect(client.createPage).not.toHaveBeenCalled();
+    expect(client.updatePage).not.toHaveBeenCalled();
+  });
+
+  it("verschiebt NICHT, wenn die Wiki-Seite seit dem Snapshot geaendert wurde", async () => {
+    const movePage = vi.fn();
+    const { svc, store } = service({ movePage, fetchUpdatedAt: vi.fn(() => Promise.resolve("T-NEU")) });
+    expect(await svc.pushOne(moved(), meta, noCollisions)).toEqual({ kind: "blocked", reason: "drift" });
+    expect(movePage).not.toHaveBeenCalled();
+    expect(store.save).not.toHaveBeenCalled();
+    expect(store.remove).not.toHaveBeenCalled();
+  });
+
+  it("scheitert das Verschieben, bleibt der alte Snapshot stehen und es wird nichts geschrieben", async () => {
+    const { svc, store } = service({ movePage: vi.fn(() => Promise.reject(new Error("boom"))) });
+    await expect(svc.pushOne(moved(), meta, noCollisions)).rejects.toThrow("boom");
+    expect(store.save).not.toHaveBeenCalled();
+    expect(store.remove).not.toHaveBeenCalled();
+  });
+
+  it("ohne movedFrom ist der Eintrag unvollstaendig", async () => {
+    const { svc } = service({ movePage: vi.fn() });
+    expect(await svc.pushOne({ ...moved(), movedFrom: undefined }, meta, noCollisions)).toEqual({ kind: "blocked", reason: "incomplete" });
+  });
+});
+

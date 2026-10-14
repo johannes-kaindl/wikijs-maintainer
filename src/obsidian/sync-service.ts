@@ -52,7 +52,7 @@ export interface ImportReport {
 }
 
 export type PushOutcome =
-  | { kind: "created" | "updated" }
+  | { kind: "created" | "updated" | "moved" }
   | { kind: "skipped"; reason: "unchanged" }
   | { kind: "blocked"; reason: "drift" | "occupied" | "collision" | "no-local" | "remote-deleted" | "incomplete" }
   | { kind: "blocked"; reason: "missing-fields"; fields: string[] };
@@ -169,6 +169,22 @@ export class SyncService {
     // von hier an wuerde jeder Zweig schreiben.
     if (meta.missing.length > 0) return { kind: "blocked", reason: "missing-fields", fields: meta.missing };
 
+    if (entry.state === "moved") {
+      const pageId = entry.pageId;
+      const from = entry.movedFrom;
+      if (pageId === undefined || from === undefined || entry.snapshot === undefined) return { kind: "blocked", reason: "incomplete" };
+      // Drift-Guard wie beim Update: eine zwischenzeitlich im Wiki geaenderte Seite wird nicht bewegt.
+      if ((await this.deps.client.fetchUpdatedAt(pageId)) !== entry.snapshot.remoteUpdatedAt) return { kind: "blocked", reason: "drift" };
+      await this.deps.client.movePage(pageId, entry.wikiPath);
+      const remoteUpdatedAt = await this.deps.client.fetchUpdatedAt(pageId);
+      await this.deps.store.save({
+        version: 1, wikiPath: entry.wikiPath, pageId,
+        raw: entry.local.raw, pushed: entry.snapshot.pushed, remoteUpdatedAt,
+      });
+      await this.deps.store.remove(from);
+      return { kind: "moved" };
+    }
+
     if (entry.state === "create") {
       const created = await this.deps.client.createPage(this.inputFor(entry, meta));
       await this.deps.store.save({
@@ -232,7 +248,7 @@ export class SyncService {
       try {
         const outcome = await this.pushOne(entry, meta, plan.collisions);
         if (outcome.kind === "created") report.created++;
-        else if (outcome.kind === "updated") report.updated++;
+        else if (outcome.kind === "updated" || outcome.kind === "moved") report.updated++;
         else if (outcome.kind === "blocked") report.blocked++;
         else report.skipped++;
         if (outcome.kind === "created" || outcome.kind === "updated") {

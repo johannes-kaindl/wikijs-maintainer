@@ -13,6 +13,7 @@ import type { AdoptOutcome, PullOutcome, PushOutcome } from "./sync-service";
 export function describeOutcome(outcome: PushOutcome, wikiPath: string): string {
   if (outcome.kind === "created") return t("notice.created", wikiPath);
   if (outcome.kind === "updated") return t("notice.pushed", wikiPath);
+  if (outcome.kind === "moved") return t("notice.moved", wikiPath);
   if (outcome.kind === "skipped") return t("notice.unchanged", wikiPath);
   // outcome.kind === "blocked" ab hier -- das ist die einzige verbleibende Variante,
   // aber `kind: "created" | "updated"` sitzt als EIN Union-Glied ohne `reason`-Feld,

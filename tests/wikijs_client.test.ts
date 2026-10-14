@@ -119,6 +119,16 @@ describe("WikiClient", () => {
     });
   });
 
+  it("movePage schickt Id, Zielpfad und Sprache und meldet ein abgelehntes Verschieben", async () => {
+    reply({ data: { pages: { move: { responseResult: { succeeded: true } } } } });
+    await new WikiClient(OPTS).movePage(9, "neu/pfad");
+    const body = JSON.parse(((requestUrl as unknown as MockFn).mock.calls.at(-1)?.[0] as { body: string }).body);
+    expect(body.query).toContain("move(id: $id");
+    expect(body.variables).toMatchObject({ id: 9, destinationPath: "neu/pfad", destinationLocale: "de" });
+    reply({ data: { pages: { move: { responseResult: { succeeded: false, message: "Page exists" } } } } });
+    await expect(new WikiClient(OPTS).movePage(9, "x")).rejects.toMatchObject({ kind: "graphql", message: expect.stringContaining("Page exists") });
+  });
+
   it("liest fuer den Drift-Guard nur updatedAt", async () => {
     reply({ data: { pages: { single: { updatedAt: "2026-03-03T00:00:00Z" } } } });
     expect(await new WikiClient(OPTS).fetchUpdatedAt(9)).toBe("2026-03-03T00:00:00Z");

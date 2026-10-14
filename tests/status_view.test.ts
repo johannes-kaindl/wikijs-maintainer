@@ -670,3 +670,19 @@ describe("WikijsStatusView — Inventur-Befunde", () => {
   });
 });
 
+describe("WikijsStatusView — verschoben", () => {
+  it("zeigt 'Verschieben' statt 'Push' und nennt den alten Pfad", async () => {
+    const wikiPath = "neu/pfad";
+    const container = await renderPlan({
+      entries: [{ ...entry(wikiPath, "moved"), movedFrom: "alt/pfad" }],
+      meta: new Map([[wikiPath, meta()]]),
+      collisions: [],
+      ambiguousNames: [],
+    });
+    const row = findRow(container, wikiPath);
+    expect(buttonTexts(row)).toContain(t("view.move"));
+    expect(buttonTexts(row)).not.toContain(t("view.push"));
+    expect(String(row.descValue)).toContain(t("status.movedFrom", "alt/pfad"));
+  });
+});
+

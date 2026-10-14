@@ -542,6 +542,11 @@ async function main(): Promise<void> {
           const m = document.querySelector(".modal-container");
           if (m) {
             if (/removed locally/i.test(m.textContent || "")) return true;
+            // Rueckfrage vor "Push all changes" (seit Welle 22): bestaetigen, dann geht es weiter.
+            if (/push \d+ page/i.test(m.textContent || "")) {
+              const go = [...m.querySelectorAll("button")].find((b) => /^push$/i.test((b.textContent || "").trim()));
+              if (go) go.click();
+            }
             if (/^Conflict:/.test(m.textContent || "")) {
               const btn = [...m.querySelectorAll("button")].find((b) => /keep local/i.test(b.textContent || ""));
               if (btn) btn.click();

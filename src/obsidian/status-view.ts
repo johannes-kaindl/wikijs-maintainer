@@ -11,7 +11,7 @@ export const VIEW_TYPE_WIKIJS_STATUS = "wikijs-status";
 
 // "conflict" ist bewusst pushbar: pushOne loest ueber den resolveConflict-Adapter
 // (askConflict-Modal) auf, statt stillschweigend nichts zu tun — s. sync-service.ts.
-const PUSHABLE = new Set(["create", "update", "conflict"]);
+const PUSHABLE = new Set(["create", "update", "conflict", "moved"]);
 // pullOne liefert fuer JEDEN anderen Zustand nur { kind: "skipped" } (Spec-Vorgabe
 // aus Task 14) -- ein Knopf dafuer waere sichtbar wirkungslos. Insbesondere
 // "conflict" und "removed-locally" bekommen deshalb KEINEN Pull-Knopf.
@@ -141,6 +141,9 @@ export class WikijsStatusView extends ItemView {
       row.setDesc(`${t(statusLabelKey(entry.state))} · ${t("status.collision")}`);
       return;
     }
+    if (entry.state === "moved" && entry.movedFrom !== undefined) {
+      row.setDesc(`${t(statusLabelKey(entry.state))} · ${t("status.movedFrom", entry.movedFrom)}`);
+    }
     if (PUSHABLE.has(entry.state)) {
       const meta = plan.meta.get(entry.wikiPath);
       // Fehlende Pflichtfelder: wie eine Kollision blockiert, mit dem Feldnamen statt eines
@@ -151,7 +154,7 @@ export class WikijsStatusView extends ItemView {
       }
       if (meta !== undefined) {
         row.addButton((b) =>
-          b.setButtonText(t("view.push")).onClick(async () => {
+          b.setButtonText(t(entry.state === "moved" ? "view.move" : "view.push")).onClick(async () => {
             await this.handlePush(entry.wikiPath);
             await this.refresh();
           }),

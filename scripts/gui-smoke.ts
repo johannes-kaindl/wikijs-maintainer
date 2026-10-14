@@ -87,6 +87,8 @@ const PUNKTE = [
   "11. Verwaister Snapshot: Verwerfen räumt die Zeile ab (SMOKE 14)",
   "12. Kein stiller Abbruch bei extern gelöschter Notiz (SMOKE 15)",
   "13. Keine rohen i18n-Schlüssel in Commands und Status-Ansicht",
+  "15. Umbenannte Notiz: Seite wird verschoben (pages.move), Id bleibt, kein Anlegen und kein Entfernen-Dialog",
+  "16. Bestand übernehmen: Wiki-Seite wird zur Notiz mit Snapshot, im Wiki wird nichts geschrieben",
 ] as const;
 
 const bilanz = createBilanz({ punkte: PUNKTE });
@@ -122,6 +124,7 @@ interface WikiPage {
   path: string;
   title: string;
   isPublished: boolean;
+  updatedAt?: string;
   content?: string;
 }
 
@@ -145,9 +148,27 @@ class Wiki {
 
   async list(): Promise<WikiPage[]> {
     const data = await this.gql<{ pages: { list: WikiPage[] } }>(
-      `{ pages { list(orderBy: PATH) { id path title isPublished } } }`,
+      `{ pages { list(orderBy: PATH) { id path title isPublished updatedAt } } }`,
     );
     return data.pages.list;
+  }
+
+  /** Legt eine Seite DIREKT im Wiki an, am Plugin vorbei — eine Seite, die der Vault nicht kennt
+   *  (Ausgangslage von "Bestand uebernehmen"). */
+  async create(path: string, title: string, content: string, locale: string): Promise<number> {
+    const data = await this.gql<{ pages: { create: { responseResult: { succeeded: boolean; message: string }; page: { id: number } | null } } }>(
+      `mutation($content: String!, $description: String!, $path: String!, $tags: [String]!, $title: String!, $locale: String!) {
+        pages { create(content: $content, description: $description, editor: "markdown", isPublished: true, isPrivate: false,
+                       locale: $locale, path: $path, tags: $tags, title: $title) {
+          responseResult { succeeded message } page { id }
+        } }
+      }`,
+      { content, description: "aus dem Wiki", path, tags: ["smoke"], title, locale },
+    );
+    if (!data.pages.create.responseResult.succeeded || data.pages.create.page === null) {
+      throw new Error(`Wiki: Anlegen fehlgeschlagen: ${data.pages.create.responseResult.message}`);
+    }
+    return data.pages.create.page.id;
   }
 
   async find(path: string): Promise<WikiPage | undefined> {
@@ -485,7 +506,9 @@ async function main(): Promise<void> {
     // zu ist — oder er meldet, woran es lag.
     await cdp.evaluate(`
       const file = app.vault.getAbstractFileByPath(${JSON.stringify(notePath("push"))});
-      await app.fileManager.renameFile(file, ${JSON.stringify(`${PREFIX}-push-entfernt.md`)});
+      // Loeschen statt Umbenennen: eine umbenannte Notiz mit gleichem Text erkennt das Plugin seit
+      // Welle 22 als Umzug (pages.move, Punkt 15), nicht mehr als "lokal entfernt".
+      await app.vault.delete(file);
       return true;
     `);
     const removal = await cdp.evaluate<{ dialog: boolean; cta: string | null; closed: boolean }>(`
@@ -651,6 +674,49 @@ async function main(): Promise<void> {
       "5. Mehrdeutiger Name: Hinweisblock da, Push bleibt möglich",
       ambiguous !== null && ambiguous.block && ambiguous.button,
       ambiguous === null ? "Block oder Zeile nicht gefunden" : `Push-Knopf ${ambiguous.button ? "da" : "fehlt"}`,
+    );
+
+    // --- 15. Umbenennen verschiebt die Seite ---------------------------------
+    // Eine umbenannte Notiz war fuer das Plugin eine neue Seite plus eine verschwundene: Id, Historie
+    // und URL gingen verloren. Gemessen wird drueben: dieselbe Id unter neuem Pfad, kein Eintrag mehr
+    // unter dem alten, und der Entfernen-Dialog erscheint nicht.
+    const umzugBody = "# Umzug\n\nDieser Text bleibt beim Umbenennen gleich, damit der Umzug erkannt wird.\n";
+    await cdp.evaluate(`
+      const path = ${JSON.stringify(notePath("umzug"))};
+      const old = app.vault.getAbstractFileByPath(path);
+      if (old) await app.vault.modify(old, ${JSON.stringify(umzugBody)}); else await app.vault.create(path, ${JSON.stringify(umzugBody)});
+      return true;
+    `);
+    await fuehreCommandAus(cdp, notePath("umzug"), `${PLUGIN_ID}:push-current-note`);
+    const vorUmzug = await wiki.find(`${PREFIX}-umzug`);
+    await cdp.evaluate(`
+      const file = app.vault.getAbstractFileByPath(${JSON.stringify(notePath("umzug"))});
+      await app.fileManager.renameFile(file, ${JSON.stringify(`${root}/${PREFIX}-umzug-neu.md`)});
+      return true;
+    `);
+    await cdp.evaluate(refreshView);
+    const moveClick = await cdp.evaluate<{ row: boolean; label: string | null; dialog: boolean }>(`
+      const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
+      const rows = view ? [...view.querySelectorAll(".setting-item")] : [];
+      const row = rows.find((r) => (r.querySelector(".setting-item-name")?.textContent || "") === ${JSON.stringify(`${PREFIX}-umzug-neu`)});
+      if (!row) return { row: false, label: null, dialog: false };
+      const btn = [...row.querySelectorAll("button")].find((b) => /move|verschieb/i.test(b.textContent || ""));
+      if (!btn) return { row: true, label: null, dialog: false };
+      btn.click();
+      await new Promise((r) => setTimeout(r, 1500));
+      return { row: true, label: btn.textContent, dialog: !!document.querySelector(".modal-container") };
+    `);
+    await new Promise((r) => setTimeout(r, 1500));
+    const nachUmzug = await wiki.find(`${PREFIX}-umzug-neu`);
+    const altUebrig = await wiki.find(`${PREFIX}-umzug`);
+    record(
+      "15. Umbenannte Notiz: Seite wird verschoben (pages.move), Id bleibt, kein Anlegen und kein Entfernen-Dialog",
+      vorUmzug !== undefined && nachUmzug?.id === vorUmzug.id && altUebrig === undefined && !moveClick.dialog,
+      !moveClick.row
+        ? "Zeile zur umbenannten Notiz fehlt in der Status-Ansicht"
+        : moveClick.label === null
+          ? "Zeile ohne Verschieben-Knopf"
+          : `Id vorher ${vorUmzug?.id} · nachher ${nachUmzug?.id} · alter Pfad ${altUebrig ? "noch da" : "weg"} · Dialog ${moveClick.dialog ? "ja" : "nein"}`,
     );
 
     // --- 6. Falscher Schlüssel wird als Authentifizierung benannt -----------
@@ -939,6 +1005,41 @@ async function main(): Promise<void> {
       "13. Keine rohen i18n-Schlüssel in Commands und Status-Ansicht",
       rawKeys.length === 0,
       rawKeys.length === 0 ? "alle Texte übersetzt" : rawKeys.slice(0, 3).join(", "),
+    );
+
+    // --- 16. Bestand uebernehmen ------------------------------------------------
+    // Ausgangslage: eine Wiki-Seite, die der Vault nicht kennt. Nach dem Befehl liegt sie als Notiz
+    // im Sync-Ordner, und im Wiki hat sich nichts bewegt (updatedAt gleich) — der Befehl schreibt nie.
+    const importLocale = await cdp.evaluate<string>(`return app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].settings.locale;`);
+    const importId = await wiki.create(`${PREFIX}-import`, `${PREFIX}-import`, "# Aus dem Wiki\n\nBestand.\n", importLocale);
+    const vorImport = await wiki.find(`${PREFIX}-import`);
+    const importLauf = await cdp.evaluate<{ modal: boolean; clicked: boolean }>(`
+      app.commands.executeCommandById(${JSON.stringify(`${PLUGIN_ID}:import-existing`)});
+      let modal = null;
+      for (let i = 0; i < 50 && !modal; i++) { await new Promise((r) => setTimeout(r, 200)); modal = document.querySelector(".modal-container"); }
+      if (!modal) return { modal: false, clicked: false };
+      const btn = modal.querySelector("button.mod-cta");
+      if (!btn) return { modal: true, clicked: false };
+      btn.click();
+      for (let i = 0; i < 40; i++) { await new Promise((r) => setTimeout(r, 150)); if (!document.querySelector(".modal-container")) break; }
+      return { modal: true, clicked: true };
+    `);
+    await new Promise((r) => setTimeout(r, 2500));
+    const importiert = await cdp.evaluate<{ exists: boolean; head: string }>(`
+      const f = app.vault.getAbstractFileByPath(${JSON.stringify(notePath("import"))});
+      if (!f) return { exists: false, head: "" };
+      return { exists: true, head: (await app.vault.read(f)).slice(0, 80) };
+    `);
+    const nachImport = await wiki.find(`${PREFIX}-import`);
+    record(
+      "16. Bestand übernehmen: Wiki-Seite wird zur Notiz mit Snapshot, im Wiki wird nichts geschrieben",
+      importLauf.modal && importLauf.clicked && importiert.exists && importiert.head.includes("title:")
+        && nachImport?.id === importId && nachImport.updatedAt === vorImport?.updatedAt,
+      !importLauf.modal
+        ? "Übernahme-Dialog erschien nicht"
+        : !importiert.exists
+          ? "Notiz wurde nicht angelegt"
+          : `Notiz da · Frontmatter ${importiert.head.includes("title:") ? "ja" : "nein"} · updatedAt ${nachImport?.updatedAt === vorImport?.updatedAt ? "unverändert" : "GEÄNDERT"}`,
     );
 
   } finally {

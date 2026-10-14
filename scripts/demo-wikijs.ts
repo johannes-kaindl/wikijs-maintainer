@@ -124,6 +124,7 @@ export async function startWikiStub(apiKey = "smoke-stub-key"): Promise<RunningW
    *  Variablen. Erkannt wird am Feldaufruf, nicht an der Dokument-Gleichheit. */
   function operationOf(query: string): { name: string; write: boolean } {
     if (/\bpages\s*\{\s*create\s*\(/.test(query)) return { name: "create", write: true };
+    if (/\bpages\s*\{\s*move\s*\(/.test(query)) return { name: "move", write: true };
     if (/\bpages\s*\{\s*delete\s*\(/.test(query)) return { name: "delete", write: true };
     const update = /\bpages\s*\{\s*update\s*\(([^)]*)\)/.exec(query);
     if (update) return { name: /isPublished:\s*false/.test(update[1] ?? "") ? "unpublish" : "update", write: true };
@@ -182,6 +183,18 @@ export async function startWikiStub(apiKey = "smoke-stub-key"): Promise<RunningW
         if (!Array.isArray(v.tags)) return { errors: [{ message: MAP_OF_UNDEFINED }] };
         page.tags = (v.tags as unknown[]).map(String);
         return { data: { pages: { update: { ...result(true, { slug: page.path }), page: { id: page.id, updatedAt: page.updatedAt } } } } };
+      }
+      case "move": {
+        const page = id !== null ? pages.get(id) : undefined;
+        if (!page) return { data: { pages: { move: result(false, { code: 6003, message: "This page does not exist." }) } } };
+        const destination = String(v.destinationPath ?? "");
+        if ([...pages.values()].some((p) => p.id !== page.id && p.path === destination)) {
+          return { data: { pages: { move: result(false, DUPLICATE_PATH) } } };
+        }
+        page.path = destination;
+        page.locale = String(v.destinationLocale ?? page.locale);
+        page.updatedAt = stamp();
+        return { data: { pages: { move: result(true, { slug: destination }) } } };
       }
       case "delete": {
         if (id === null || !pages.delete(id)) {

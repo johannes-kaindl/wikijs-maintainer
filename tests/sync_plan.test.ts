@@ -187,3 +187,78 @@ describe("planSync — Sprache und Pfad zusammen sind der Schluessel", () => {
     expect(entries[0]).toMatchObject({ state: "unchanged", pageId: 2 });
   });
 });
+
+// Umbenennen ist in Obsidian die alltaeglichste Operation. Ohne Erkennung ist eine umbenannte Notiz
+// fuer das Plugin eine neue Seite (`create`) plus eine verschwundene (`removed-locally`): Id,
+// Historie und URL gehen verloren. Die Erkennung ist konservativ: nur bei GENAU gleichem Rohtext,
+// eindeutig, mit unveraendertem Wiki-Stand — im Zweifel bleibt es bei create + removed-locally.
+describe("planSync — verschoben (pages.move)", () => {
+  const RAW = "# Seite\n\nGenug Text, damit der Vergleich etwas aussagt.\n";
+
+  it("erkennt eine umbenannte Notiz an Snapshot und Rohtext und fasst beide Eintraege zu 'moved' zusammen", () => {
+    const entries = planSync({
+      locals: [local("neu/pfad", RAW)],
+      snapshots: [snap("alt/pfad", RAW, "T1", 7)],
+      remotes: [remote("alt/pfad", "T1", 7)],
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ wikiPath: "neu/pfad", state: "moved", movedFrom: "alt/pfad", pageId: 7 });
+    expect(entries[0]?.local?.wikiPath).toBe("neu/pfad");
+    expect(entries[0]?.snapshot?.wikiPath).toBe("alt/pfad");
+  });
+
+  it("aendert sich der Text beim Umbenennen, bleibt es bei create + removed-locally (im Zweifel nachfragen)", () => {
+    const entries = planSync({
+      locals: [local("neu/pfad", RAW + "mehr")],
+      snapshots: [snap("alt/pfad", RAW, "T1", 7)],
+      remotes: [remote("alt/pfad", "T1", 7)],
+    });
+    expect(entries.map((e) => e.state).sort()).toEqual(["create", "removed-locally"]);
+  });
+
+  it("zwei gleiche Kandidaten sind nicht eindeutig: keine Zusammenfassung", () => {
+    const entries = planSync({
+      locals: [local("neu/a", RAW), local("neu/b", RAW)],
+      snapshots: [snap("alt/pfad", RAW, "T1", 7)],
+      remotes: [remote("alt/pfad", "T1", 7)],
+    });
+    expect(entries.map((e) => e.state).sort()).toEqual(["create", "create", "removed-locally"]);
+  });
+
+  it("zwei verschwundene Seiten mit gleichem Text sind nicht eindeutig", () => {
+    const entries = planSync({
+      locals: [local("neu/pfad", RAW)],
+      snapshots: [snap("alt/a", RAW, "T1", 7), snap("alt/b", RAW, "T1", 8)],
+      remotes: [remote("alt/a", "T1", 7), remote("alt/b", "T1", 8)],
+    });
+    expect(entries.some((e) => e.state === "moved")).toBe(false);
+  });
+
+  it("hat sich die Wiki-Seite seit dem Snapshot geaendert, wird nicht verschoben", () => {
+    const entries = planSync({
+      locals: [local("neu/pfad", RAW)],
+      snapshots: [snap("alt/pfad", RAW, "T1", 7)],
+      remotes: [remote("alt/pfad", "T2", 7)],
+    });
+    expect(entries.some((e) => e.state === "moved")).toBe(false);
+  });
+
+  it("ein leerer Text beweist nichts: keine Zusammenfassung", () => {
+    const entries = planSync({
+      locals: [local("neu/pfad", "  \n")],
+      snapshots: [snap("alt/pfad", "  \n", "T1", 7)],
+      remotes: [remote("alt/pfad", "T1", 7)],
+    });
+    expect(entries.some((e) => e.state === "moved")).toBe(false);
+  });
+
+  it("belegt der neue Pfad im Wiki schon eine Seite (occupied), ist es kein Umzug", () => {
+    const entries = planSync({
+      locals: [local("neu/pfad", RAW)],
+      snapshots: [snap("alt/pfad", RAW, "T1", 7)],
+      remotes: [remote("alt/pfad", "T1", 7), remote("neu/pfad", "T9", 9)],
+    });
+    expect(entries.some((e) => e.state === "moved")).toBe(false);
+  });
+});
+

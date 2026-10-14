@@ -58,3 +58,13 @@ export const UNPUBLISH_PAGE = `mutation($id: Int!, $content: String!, $tags: [St
 export const DELETE_PAGE = `mutation($id: Int!) {
   pages { delete(id: $id) { responseResult { succeeded errorCode slug message } } }
 }`;
+
+/** Verschiebt eine Seite serverseitig, Id und Historie bleiben (statt Loeschen + Anlegen). Das
+ *  Schema fuehrt `move` (docs/LAB.md); das Verhalten an der echten Instanz ist NICHT gemessen. */
+export const MOVE_PAGE = `mutation($id: Int!, $destinationPath: String!, $destinationLocale: String!) {
+  pages {
+    move(id: $id, destinationPath: $destinationPath, destinationLocale: $destinationLocale) {
+      responseResult { succeeded errorCode slug message }
+    }
+  }
+}`;

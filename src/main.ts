@@ -225,7 +225,7 @@ export default class WikijsMaintainerPlugin extends Plugin {
       const plan = await service.buildPlan();
       // Rueckfrage vor der folgenreichen Sammelaktion: nur wenn wirklich etwas geschrieben wuerde.
       const pending = plan.entries.filter(
-        (e) => (e.state === "create" || e.state === "update" || e.state === "conflict") && plan.meta.get(e.wikiPath) !== undefined,
+        (e) => (e.state === "create" || e.state === "update" || e.state === "conflict" || e.state === "moved") && plan.meta.get(e.wikiPath) !== undefined,
       ).length;
       if (pending > 0) {
         const go = await confirmAction(this.app, {

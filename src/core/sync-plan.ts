@@ -31,6 +31,7 @@ export type SyncState =
   | "remote-deleted"
   | "new-remote"
   | "stale-snapshot"
+  | "moved"
   | "unchanged";
 
 export interface SyncEntry {
@@ -40,6 +41,8 @@ export interface SyncEntry {
   local?: LocalPage;
   remote?: RemotePage;
   snapshot?: Snapshot;
+  /** Nur bei `moved`: der Wiki-Pfad, unter dem die Seite bisher stand (Snapshot und Wiki-Seite). */
+  movedFrom?: string;
 }
 
 export interface PlanInput {
@@ -101,7 +104,7 @@ export function planSync(input: PlanInput): SyncEntry[] {
     slot(remote.locale ?? own, remote.path).remote = remote;
   }
 
-  return [...bySlot.values()]
+  const entries = [...bySlot.values()]
     .map((parts) => ({
       wikiPath: parts.wikiPath,
       state: decide(parts.local, parts.snapshot, parts.remote),
@@ -111,6 +114,46 @@ export function planSync(input: PlanInput): SyncEntry[] {
       snapshot: parts.snapshot,
     }))
     .sort((a, b) => (a.wikiPath < b.wikiPath ? -1 : a.wikiPath > b.wikiPath ? 1 : 0));
+  return foldMoves(entries);
+}
+
+/** Erkennt umbenannte Notizen: ein `create` (neue Datei, kein Snapshot, keine Wiki-Seite) und ein
+ *  `removed-locally` (Snapshot und Wiki-Seite da, Datei weg) mit GENAU gleichem Rohtext sind
+ *  dieselbe Seite unter neuem Pfad. Konservativ, weil ein falsch erkannter Umzug eine fremde Seite
+ *  bewegt: der Text muss etwas aussagen (nicht leer), die Zuordnung muss in BEIDE Richtungen
+ *  eindeutig sein, und die Wiki-Seite darf sich seit dem Snapshot nicht geaendert haben. Im Zweifel
+ *  bleiben die beiden Eintraege stehen (neu + lokal entfernt), und der Nutzer entscheidet. */
+function foldMoves(entries: SyncEntry[]): SyncEntry[] {
+  const creates = entries.filter((e) => e.state === "create" && e.local !== undefined);
+  const removed = entries.filter(
+    (e) => e.state === "removed-locally" && e.snapshot !== undefined && e.remote !== undefined && e.pageId !== undefined,
+  );
+  const folded = new Set<SyncEntry>();
+  const moves: SyncEntry[] = [];
+  for (const created of creates) {
+    const raw = created.local?.raw ?? "";
+    if (raw.trim() === "") continue;
+    const sameRaw = (e: SyncEntry): boolean => e.snapshot?.raw === raw;
+    const candidates = removed.filter(sameRaw);
+    if (candidates.length !== 1) continue;
+    if (creates.filter((c) => c.local?.raw === raw).length !== 1) continue;
+    const old = candidates[0];
+    if (old.remote?.updatedAt !== old.snapshot?.remoteUpdatedAt) continue;
+    folded.add(created);
+    folded.add(old);
+    moves.push({
+      wikiPath: created.wikiPath,
+      state: "moved",
+      pageId: old.pageId,
+      local: created.local,
+      remote: old.remote,
+      snapshot: old.snapshot,
+      movedFrom: old.wikiPath,
+    });
+  }
+  return [...entries.filter((e) => !folded.has(e)), ...moves].sort((a, b) =>
+    a.wikiPath < b.wikiPath ? -1 : a.wikiPath > b.wikiPath ? 1 : 0,
+  );
 }
 
 /** Zustand → i18n-Schluessel. Als `Record` ueber die Union geschrieben, nicht als
@@ -126,6 +169,7 @@ const STATUS_LABEL_KEY: Record<SyncState, string> = {
   "remote-deleted": "status.remoteDeleted",
   "new-remote": "status.newRemote",
   "stale-snapshot": "status.staleSnapshot",
+  moved: "status.moved",
   unchanged: "status.unchanged",
 };
 
@@ -144,6 +188,7 @@ const STATUS_KIND: Record<SyncState, StatusKind> = {
   "remote-deleted": "error",
   "new-remote": "warning",
   "stale-snapshot": "warning",
+  moved: "warning",
   unchanged: "ok",
 };
 

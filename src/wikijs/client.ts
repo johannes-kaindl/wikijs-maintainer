@@ -5,7 +5,7 @@ import { requestUrl } from "obsidian";
 import { withTimeout } from "../vendor/kit/timeout";
 import type { RemotePage } from "../core/sync-plan";
 import {
-  CREATE_PAGE, DELETE_PAGE, LIST_PAGES, PAGE_UPDATED_AT, SINGLE_PAGE, UNPUBLISH_PAGE, UPDATE_PAGE,
+  CREATE_PAGE, DELETE_PAGE, LIST_PAGES, MOVE_PAGE, PAGE_UPDATED_AT, SINGLE_PAGE, UNPUBLISH_PAGE, UPDATE_PAGE,
 } from "./queries";
 
 export interface WikiClientOptions {
@@ -209,6 +209,14 @@ export class WikiClient {
       { id, content: page.content, tags: page.tags },
     );
     this.assertSucceeded(data.pages.update.responseResult, "Depublizieren");
+  }
+
+  /** Benennt die Seite serverseitig um (Id, Historie und Versionen bleiben). */
+  async movePage(id: number, destinationPath: string): Promise<void> {
+    const data = await this.gql<{ pages: { move: { responseResult: ResponseResult } } }>(MOVE_PAGE, {
+      id, destinationPath, destinationLocale: this.opts.locale,
+    });
+    this.assertSucceeded(data.pages.move.responseResult, "Verschieben");
   }
 
   async deletePage(id: number): Promise<void> {
