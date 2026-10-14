@@ -136,4 +136,54 @@ describe("planSync — Ergebnisform", () => {
     });
     expect(entries).toHaveLength(1);
   });
+
+});
+
+// Wiki.js identifiziert eine Seite erst durch Sprache UND Pfad (`home` existierte im LGS-Wiki
+// als Id 1 englisch und Id 2 deutsch nebeneinander). Auf den Pfad allein geschluesselt,
+// ueberschrieb eine die andere im selben Slot, und `pageId` zeigte auf die falsche Sprache.
+describe("planSync — Sprache und Pfad zusammen sind der Schluessel", () => {
+  const inLocale = (locale: string, path: string, updatedAt: string, id: number): RemotePage => ({
+    id, path, title: path, updatedAt, locale,
+  });
+
+  it("zwei Seiten mit gleichem Pfad in zwei Sprachen: die der eingestellten Sprache gewinnt, in beiden Reihenfolgen", () => {
+    const en = inLocale("en", "home", "T1", 1);
+    const de = inLocale("de", "home", "T2", 2);
+    for (const remotes of [[en, de], [de, en]]) {
+      const entries = planSync({ locals: [local("home", "x")], snapshots: [], remotes, locale: "de" });
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toMatchObject({ wikiPath: "home", state: "occupied", pageId: 2 });
+      expect(entries[0]?.remote?.id).toBe(2);
+    }
+  });
+
+  it("eine Seite nur in fremder Sprache ist fuer die eingestellte Sprache nicht vorhanden → create statt occupied", () => {
+    const entries = planSync({ locals: [local("home", "x")], snapshots: [], remotes: [inLocale("en", "home", "T1", 1)], locale: "de" });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.state).toBe("create");
+    expect(entries[0]?.remote).toBeUndefined();
+  });
+
+  it("eine fremdsprachige Seite taucht nicht als new-remote auf (kein Pull in eine falsche Sprache)", () => {
+    const entries = planSync({ locals: [], snapshots: [], remotes: [inLocale("en", "home", "T1", 1)], locale: "de" });
+    expect(entries).toEqual([]);
+  });
+
+  it("ohne eingestellte Sprache werden zwei Sprachen nie auf einen Eintrag zusammengezogen", () => {
+    const entries = planSync({
+      locals: [], snapshots: [],
+      remotes: [inLocale("en", "home", "T1", 1), inLocale("de", "home", "T2", 2)],
+    });
+    expect(entries.map((e) => e.pageId).sort()).toEqual([1, 2]);
+  });
+
+  it("ein Snapshot (ohne Sprache gespeichert) gehoert zur eingestellten Sprache und trifft deren Seite", () => {
+    const entries = planSync({
+      locals: [local("home", "x")], snapshots: [snap("home", "x", "T2", 2)],
+      remotes: [inLocale("en", "home", "T1", 1), inLocale("de", "home", "T2", 2)], locale: "de",
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ state: "unchanged", pageId: 2 });
+  });
 });

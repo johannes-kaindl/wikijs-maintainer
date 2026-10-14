@@ -39,6 +39,8 @@ export interface SyncDeps {
   store: SnapshotStore;
   vault: Vault;
   syncRoot: () => string;
+  /** Eingestellte Wiki-Sprache; der Plan schluesselt auf Sprache und Pfad (s. `planSync`). */
+  locale?: string;
   /** Fehlt dieser Auflöser, wird ein `conflict`-Eintrag ohne Rückfrage blockiert
    *  (s. Guard am Anfang von `pushOne`). Gesetzt, entscheidet er per Diff-Dialog. */
   resolveConflict?: (entry: SyncEntry, remoteContent: string) => Promise<ConflictChoice>;
@@ -83,7 +85,7 @@ export class SyncService {
     const collected = await collectLocalPages(this.deps.vault, this.deps.syncRoot());
     const [snapshots, remotes] = await Promise.all([this.deps.store.loadAll(), this.deps.client.listPages()]);
     return {
-      entries: planSync({ locals: collected.pages, snapshots, remotes }),
+      entries: planSync({ locals: collected.pages, snapshots, remotes, locale: this.deps.locale }),
       meta: collected.meta,
       collisions: collected.collisions,
       ambiguousNames: collected.ambiguousNames,

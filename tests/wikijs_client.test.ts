@@ -41,6 +41,24 @@ describe("WikiClient", () => {
     expect(pages).toEqual([{ id: 3, path: "a/b", title: "T", updatedAt: "2026-01-01T00:00:00Z" }]);
   });
 
+  // Pfad allein identifiziert in Wiki.js keine Seite; ein Wiki kann `home` in mehreren Sprachen fuehren.
+  it("fragt die Sprache mit ab und reicht nur Seiten der eingestellten Sprache weiter", async () => {
+    reply({
+      data: {
+        pages: {
+          list: [
+            { id: 1, path: "home", locale: "en", title: "Home", updatedAt: "T1" },
+            { id: 2, path: "home", locale: "de", title: "Start", updatedAt: "T2" },
+          ],
+        },
+      },
+    });
+    const pages = await new WikiClient(OPTS).listPages();
+    const query = JSON.parse(((requestUrl as unknown as MockFn).mock.calls.at(-1)?.[0] as { body: string }).body).query as string;
+    expect(query).toMatch(/list\([^)]*\)\s*\{[^}]*\blocale\b/);
+    expect(pages.map((p) => p.id)).toEqual([2]);
+  });
+
   it("wirft WikiError kind=auth bei 401", async () => {
     reply({}, 401);
     await expect(new WikiClient(OPTS).listPages()).rejects.toMatchObject({ kind: "auth" });

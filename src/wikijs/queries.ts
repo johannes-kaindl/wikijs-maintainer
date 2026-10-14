@@ -1,6 +1,6 @@
 // GraphQL-Dokumente fuer Wiki.js 2.x. Gegen die laufende Instanz gemessen —
 // Befund in docs/LAB.md; die Doku-Fassung ist NICHT die Quelle der Wahrheit.
-export const LIST_PAGES = `query { pages { list(orderBy: PATH) { id path title updatedAt } } }`;
+export const LIST_PAGES = `query { pages { list(orderBy: PATH) { id path title locale updatedAt } } }`;
 
 export const SINGLE_PAGE = `query($id: Int!) {
   pages { single(id: $id) { id path title description content updatedAt tags { tag } } }

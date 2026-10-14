@@ -73,7 +73,7 @@ Open the plugin's settings tab and fill in:
   `_published`). Its structure maps 1:1 onto wiki paths:
   `_published/Network/DNS-Setup.md` becomes `network/dns-setup`. Moving a note
   into this folder is a publication decision.
-- **Wiki locale** — the Wiki.js locale used for pages this plugin creates
+- **Wiki locale** — the Wiki.js locale of the pages this plugin manages: new pages are created in it, pages of other locales are ignored
   (default `de`).
 - **Request timeout** — per-request timeout in seconds (5–120, default 30).
 

@@ -126,6 +126,7 @@ export default class WikijsMaintainerPlugin extends Plugin {
       store: new SnapshotStore(this.app.vault.adapter, this.manifest.dir ?? ""),
       vault: this.app.vault,
       syncRoot: () => this.settings.syncRoot,
+      locale: this.settings.locale,
       resolveConflict: (entry, remoteContent) =>
         askConflict(this.app, {
           wikiPath: entry.wikiPath,

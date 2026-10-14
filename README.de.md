@@ -70,7 +70,7 @@ Im Einstellungs-Tab des Plugins eintragen:
   nicht still ins Leere laufen.
 - **Sync-Ordner** — der Vault-Ordner, dessen Notizen veröffentlicht werden
   (Standard `_published`). `_published/Netzwerk/DNS-Setup.md` wird zu `netzwerk/dns-setup`.
-- **Wiki-Sprache** — Locale der Seiten, die das Plugin anlegt (Standard `de`).
+- **Wiki-Sprache** — Locale der Seiten, die das Plugin verwaltet (Standard `de`): neue Seiten entstehen in ihr, Seiten anderer Sprachen werden ignoriert.
   Sie muss in deiner Instanz **installiert** sein, sonst lehnt Wiki.js das Anlegen ab.
 - **Zeitlimit** — Sekunden pro Anfrage (5–120, Standard 30).
 

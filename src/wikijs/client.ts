@@ -150,7 +150,9 @@ export class WikiClient {
 
   async listPages(): Promise<RemotePage[]> {
     const data = await this.gql<{ pages: { list: RemotePage[] } }>(LIST_PAGES);
-    return data.pages.list;
+    // Pfad allein identifiziert in Wiki.js keine Seite; ein Wiki kann `home` in mehreren Sprachen
+    // fuehren. Das Plugin verwaltet genau eine (Einstellung `locale`).
+    return data.pages.list.filter((p) => p.locale === undefined || p.locale === this.opts.locale);
   }
 
   /** `pages.single` ist `null`, wenn die Seite (z.B. im Wiki-Admin) geloescht wurde —

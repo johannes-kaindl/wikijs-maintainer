@@ -17,6 +17,8 @@ export interface RemotePage {
   path: string;
   title: string;
   updatedAt: string;
+  /** Sprache der Wiki-Seite. Pfad allein identifiziert in Wiki.js keine Seite. */
+  locale?: string;
 }
 
 export type SyncState =
@@ -44,6 +46,9 @@ export interface PlanInput {
   locals: LocalPage[];
   snapshots: Snapshot[];
   remotes: RemotePage[];
+  /** Eingestellte Wiki-Sprache. Lokale Seiten und Snapshots gehoeren zu ihr; Seiten anderer
+   *  Sprachen sind fuer diesen Plan nicht vorhanden. */
+  locale?: string;
 }
 
 function decide(
@@ -68,26 +73,37 @@ function decide(
   return "unchanged";
 }
 
-/** Fuehrt die drei Quellen ueber den Wiki-Pfad zusammen und entscheidet je Pfad.
+/** Fuehrt die drei Quellen ueber Sprache und Wiki-Pfad zusammen und entscheidet je Eintrag.
  *  Sortiert nach Pfad — die Status-Ansicht soll zwischen zwei Laeufen nicht
  *  umspringen, auch wenn die API die Seiten anders herum liefert. */
 export function planSync(input: PlanInput): SyncEntry[] {
-  const byPath = new Map<string, { local?: LocalPage; snapshot?: Snapshot; remote?: RemotePage }>();
-  const slot = (wikiPath: string): { local?: LocalPage; snapshot?: Snapshot; remote?: RemotePage } => {
-    const found = byPath.get(wikiPath);
+  // Schluessel ist `locale:path`, nicht der Pfad allein: zwei Seiten gleichen Pfads in zwei
+  // Sprachen duerfen sich nicht denselben Slot teilen (eine ueberschriebe die andere, und
+  // `pageId` zeigte auf die falsche Sprache). Lokale Dateien und Snapshots tragen keine
+  // Sprache; sie gehoeren zur eingestellten.
+  const own = input.locale ?? "";
+  const bySlot = new Map<string, { wikiPath: string; local?: LocalPage; snapshot?: Snapshot; remote?: RemotePage }>();
+  const slot = (locale: string, wikiPath: string): { wikiPath: string; local?: LocalPage; snapshot?: Snapshot; remote?: RemotePage } => {
+    const key = `${locale}:${wikiPath}`;
+    const found = bySlot.get(key);
     if (found) return found;
-    const fresh = {};
-    byPath.set(wikiPath, fresh);
+    const fresh = { wikiPath };
+    bySlot.set(key, fresh);
     return fresh;
   };
 
-  for (const local of input.locals) slot(local.wikiPath).local = local;
-  for (const snapshot of input.snapshots) slot(snapshot.wikiPath).snapshot = snapshot;
-  for (const remote of input.remotes) slot(remote.path).remote = remote;
+  for (const local of input.locals) slot(own, local.wikiPath).local = local;
+  for (const snapshot of input.snapshots) slot(own, snapshot.wikiPath).snapshot = snapshot;
+  for (const remote of input.remotes) {
+    // Eine Seite in fremder Sprache ist fuer diesen Plan nicht vorhanden: weder `occupied`
+    // noch `new-remote` (ein Pull legte sie sonst als Notiz einer falschen Sprache an).
+    if (input.locale !== undefined && remote.locale !== undefined && remote.locale !== input.locale) continue;
+    slot(remote.locale ?? own, remote.path).remote = remote;
+  }
 
-  return [...byPath.entries()]
-    .map(([wikiPath, parts]) => ({
-      wikiPath,
+  return [...bySlot.values()]
+    .map((parts) => ({
+      wikiPath: parts.wikiPath,
       state: decide(parts.local, parts.snapshot, parts.remote),
       pageId: parts.snapshot?.pageId ?? parts.remote?.id,
       local: parts.local,

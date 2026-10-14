@@ -13,7 +13,7 @@ Open **Settings → Wiki.js Maintainer** and fill in:
 - **Wiki URL** — the base address, for example `https://wiki.example.org`, without `/graphql`.
 - **API key** — the key from step 1.
 
-Leave **Sync folder** at `_published` for now. **Wiki locale** (default `de`) is the language of pages the plugin creates; change it to your wiki's locale if it differs.
+Leave **Sync folder** at `_published` for now. **Wiki locale** (default `de`) is the language of the pages the plugin manages: it creates new pages in it and ignores pages of other locales, so change it to your wiki's locale if it differs.
 
 ## 3. Put a note into the sync folder
 
