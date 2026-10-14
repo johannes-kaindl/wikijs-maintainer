@@ -4,7 +4,8 @@
 // -- ein wirkungsloser Knopf ist schlimmer als keiner), Push gesperrt bei
 // Slug-Kollision, Warnblock bei mehrdeutigen Namen sperrt NICHTS.
 import { describe, expect, it, beforeAll, beforeEach, vi } from "vitest";
-import { Notice, WorkspaceLeaf } from "obsidian";
+import { WorkspaceLeaf } from "obsidian";
+import { notices } from "./helpers/mock-types";
 import { defineStrings, setLang, t } from "../src/vendor/kit/i18n";
 import { STRINGS } from "../src/i18n/strings";
 import { WikijsStatusView } from "../src/obsidian/status-view";
@@ -18,7 +19,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  Notice.instances.length = 0;
+  notices.length = 0;
 });
 
 function meta(): TransformResult {
@@ -55,7 +56,7 @@ async function clickButton(setting: any, text: string): Promise<void> {
 }
 
 function noticeTexts(): string[] {
-  return Notice.instances.map((n) => String(n.message));
+  return notices.map((n) => String(n.message));
 }
 
 async function renderPlan(plan: BuiltPlan): Promise<any> {

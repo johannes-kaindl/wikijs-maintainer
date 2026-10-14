@@ -8,7 +8,8 @@
 //    (z.B. ein .canvas dort).
 //  - pushAll haengt jetzt eine eigene Report-Zeile fuer Depublizieren/Loeschen an.
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, Notice, TFile } from "obsidian";
+import { App, type TFile } from "obsidian";
+import { makeFile, makeManifest, notices } from "./helpers/mock-types";
 import { defineStrings, setLang, t } from "../src/vendor/kit/i18n";
 import { STRINGS } from "../src/i18n/strings";
 import { DEFAULT_SETTINGS } from "../src/core/settings-types";
@@ -21,12 +22,12 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  Notice.instances.length = 0;
+  notices.length = 0;
 });
 
 function makePlugin(withCredentials: boolean): WikijsMaintainerPlugin {
   const app = new App();
-  const plugin = new WikijsMaintainerPlugin(app, { id: "wikijs-maintainer", name: "x", version: "0.0.0" });
+  const plugin = new WikijsMaintainerPlugin(app, makeManifest("wikijs-maintainer"));
   plugin.settings = {
     ...DEFAULT_SETTINGS,
     baseUrl: withCredentials ? "https://wiki.example.org" : "",
@@ -36,7 +37,7 @@ function makePlugin(withCredentials: boolean): WikijsMaintainerPlugin {
 }
 
 function noticeTexts(): string[] {
-  return Notice.instances.map((n) => String(n.message));
+  return notices.map((n) => String(n.message));
 }
 
 describe("Zugangsdaten-Guard (alle vier Commands)", () => {
@@ -49,7 +50,7 @@ describe("Zugangsdaten-Guard (alle vier Commands)", () => {
   it("Aktuelle Notiz pushen: ohne URL/Key nur eine Notice, kein Dienst wird gebaut", async () => {
     const plugin = makePlugin(false);
     const buildService = vi.spyOn(plugin as unknown as { buildService(): unknown }, "buildService");
-    const file = new TFile("_published/A.md");
+    const file = makeFile("_published/A.md");
     await (plugin as unknown as { pushCurrent(f: TFile): Promise<void> }).pushCurrent(file);
     expect(noticeTexts()).toEqual([t("notice.noUrl")]);
     expect(buildService).not.toHaveBeenCalled();
@@ -58,7 +59,7 @@ describe("Zugangsdaten-Guard (alle vier Commands)", () => {
   it("Aktuelle Notiz pullen: ohne URL/Key nur eine Notice, kein Dienst wird gebaut", async () => {
     const plugin = makePlugin(false);
     const buildService = vi.spyOn(plugin as unknown as { buildService(): unknown }, "buildService");
-    const file = new TFile("_published/A.md");
+    const file = makeFile("_published/A.md");
     await (plugin as unknown as { pullCurrent(f: TFile): Promise<void> }).pullCurrent(file);
     expect(noticeTexts()).toEqual([t("notice.noUrl")]);
     expect(buildService).not.toHaveBeenCalled();
@@ -82,7 +83,7 @@ describe("Stumme Rueckkehr fuer nicht-synchronisierbare Dateien", () => {
   it("pushCurrent meldet notSyncable statt nichts zu tun, wenn die Datei im Sync-Ordner liegt, aber kein Plan-Eintrag existiert", async () => {
     const plugin = makePlugin(true);
     withFakeService(plugin, { entries: [], meta: new Map(), collisions: [], ambiguousNames: [] });
-    const file = new TFile("_published/Not-A-Page.canvas");
+    const file = makeFile("_published/Not-A-Page.canvas");
     await (plugin as unknown as { pushCurrent(f: TFile): Promise<void> }).pushCurrent(file);
     expect(noticeTexts()).toEqual([t("notice.notSyncable", "not-a-page")]);
   });
@@ -90,7 +91,7 @@ describe("Stumme Rueckkehr fuer nicht-synchronisierbare Dateien", () => {
   it("pullCurrent meldet notSyncable statt nichts zu tun, wenn die Datei im Sync-Ordner liegt, aber kein Plan-Eintrag existiert", async () => {
     const plugin = makePlugin(true);
     withFakeService(plugin, { entries: [], meta: new Map(), collisions: [], ambiguousNames: [] });
-    const file = new TFile("_published/Not-A-Page.canvas");
+    const file = makeFile("_published/Not-A-Page.canvas");
     await (plugin as unknown as { pullCurrent(f: TFile): Promise<void> }).pullCurrent(file);
     expect(noticeTexts()).toEqual([t("notice.notSyncable", "not-a-page")]);
   });
@@ -194,7 +195,7 @@ describe("Sync-Ordner-Grenze", () => {
     const plugin = makePlugin(true);
     const buildPlan = vi.fn();
     fakeService(plugin, { buildPlan });
-    await (plugin as unknown as { pushCurrent(f: TFile): Promise<void> }).pushCurrent(new TFile("10_Werkstatt/Entwurf.md"));
+    await (plugin as unknown as { pushCurrent(f: TFile): Promise<void> }).pushCurrent(makeFile("10_Werkstatt/Entwurf.md"));
     expect(noticeTexts()).toEqual([t("notice.outsideRoot", DEFAULT_SETTINGS.syncRoot)]);
     expect(buildPlan).not.toHaveBeenCalled();
   });
@@ -203,7 +204,7 @@ describe("Sync-Ordner-Grenze", () => {
     const plugin = makePlugin(true);
     const buildPlan = vi.fn();
     fakeService(plugin, { buildPlan });
-    await (plugin as unknown as { pullCurrent(f: TFile): Promise<void> }).pullCurrent(new TFile("10_Werkstatt/Entwurf.md"));
+    await (plugin as unknown as { pullCurrent(f: TFile): Promise<void> }).pullCurrent(makeFile("10_Werkstatt/Entwurf.md"));
     expect(noticeTexts()).toEqual([t("notice.outsideRoot", DEFAULT_SETTINGS.syncRoot)]);
     expect(buildPlan).not.toHaveBeenCalled();
   });
@@ -216,7 +217,7 @@ describe("Ergebnis-Meldungen der Einzel-Commands", () => {
       buildPlan: () => Promise.resolve(planWithEntry("a")),
       pushOne: () => Promise.resolve({ kind: "updated" }),
     });
-    await (plugin as unknown as { pushCurrent(f: TFile): Promise<void> }).pushCurrent(new TFile("_published/A.md"));
+    await (plugin as unknown as { pushCurrent(f: TFile): Promise<void> }).pushCurrent(makeFile("_published/A.md"));
     expect(noticeTexts()).toEqual([t("notice.pushed", "a")]);
   });
 
@@ -226,7 +227,7 @@ describe("Ergebnis-Meldungen der Einzel-Commands", () => {
       buildPlan: () => Promise.resolve(planWithEntry("a")),
       pullOne: () => Promise.resolve({ kind: "written", vaultPath: "_published/A.md" }),
     });
-    await (plugin as unknown as { pullCurrent(f: TFile): Promise<void> }).pullCurrent(new TFile("_published/A.md"));
+    await (plugin as unknown as { pullCurrent(f: TFile): Promise<void> }).pullCurrent(makeFile("_published/A.md"));
     expect(noticeTexts()).toEqual([t("notice.pulled", "a")]);
   });
 });
@@ -243,7 +244,7 @@ describe("Fehler nennen ihre Art, nicht ihren Wortlaut", () => {
       buildPlan: () => Promise.resolve(planWithEntry("a")),
       pushOne: () => Promise.reject(rejected()),
     });
-    await (plugin as unknown as { pushCurrent(f: TFile): Promise<void> }).pushCurrent(new TFile("_published/A.md"));
+    await (plugin as unknown as { pushCurrent(f: TFile): Promise<void> }).pushCurrent(makeFile("_published/A.md"));
     expect(noticeTexts()).toEqual([t("notice.authFailed")]);
   });
 
@@ -253,7 +254,7 @@ describe("Fehler nennen ihre Art, nicht ihren Wortlaut", () => {
       buildPlan: () => Promise.resolve(planWithEntry("a")),
       pullOne: () => Promise.reject(rejected()),
     });
-    await (plugin as unknown as { pullCurrent(f: TFile): Promise<void> }).pullCurrent(new TFile("_published/A.md"));
+    await (plugin as unknown as { pullCurrent(f: TFile): Promise<void> }).pullCurrent(makeFile("_published/A.md"));
     expect(noticeTexts()).toEqual([t("notice.authFailed")]);
   });
 
@@ -279,7 +280,7 @@ describe("writeNote-Adapter (Pull schreibt in den Vault)", () => {
     vault.getFolderByPath = vi.fn((p: string) => (knownFolders.has(p) ? {} : null));
     vault.createFolder = vi.fn(async (p: string) => { createdFolders.push(p); knownFolders.add(p); });
     vault.getFileByPath = vi.fn(() => existingFile);
-    vault.create = vi.fn(async () => new TFile());
+    vault.create = vi.fn(async () => makeFile());
     vault.modify = vi.fn(async () => undefined);
     return { createdFolders, vault };
   }
@@ -300,7 +301,7 @@ describe("writeNote-Adapter (Pull schreibt in den Vault)", () => {
 
   it("ueberschreibt eine bereits vorhandene Datei, statt sie ein zweites Mal anzulegen", async () => {
     const plugin = makePlugin(true);
-    const existing = new TFile("_published/A.md");
+    const existing = makeFile("_published/A.md");
     const { vault } = vaultDouble(plugin, existing);
     await writeNoteOf(plugin)("_published/A.md", "neuer Inhalt");
     expect(vault.modify).toHaveBeenCalledWith(existing, "neuer Inhalt");

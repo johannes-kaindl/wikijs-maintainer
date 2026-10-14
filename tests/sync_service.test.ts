@@ -258,7 +258,7 @@ describe("SyncService.adoptOccupied", () => {
     const { svc, client, store } = service();
     const out = await svc.adoptOccupied(entry({ state: "update" }), meta);
     expect(out).toEqual({ kind: "blocked", reason: "not-occupied" });
-    expect(client.fetchPage).toBeUndefined();
+    expect((client as Record<string, unknown>).fetchPage).toBeUndefined();
     expect(store.save).not.toHaveBeenCalled();
   });
 });
