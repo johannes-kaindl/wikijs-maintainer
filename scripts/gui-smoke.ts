@@ -515,9 +515,16 @@ async function main(): Promise<void> {
       app.commands.executeCommandById(${JSON.stringify(`${PLUGIN_ID}:push-all-changes`)});
 
       let modal = null;
-      for (let i = 0; i < 40 && !modal; i++) {
+      for (let i = 0; i < 60 && !modal; i++) {
         await new Promise((r) => setTimeout(r, 150));
         modal = document.querySelector(".modal-container");
+        // Rückfrage vor "Push all changes" (seit Welle 22): bestätigen, dann kommt der Entfernen-Dialog.
+        if (modal && /push \\d+ page/i.test(modal.textContent || "")) {
+          const go = [...modal.querySelectorAll("button")].find((b) => /^push$/i.test((b.textContent || "").trim()));
+          if (go) go.click();
+          modal = null;
+          await new Promise((r) => setTimeout(r, 400));
+        }
       }
       if (!modal) return { dialog: false, cta: null, closed: false };
 
@@ -622,13 +629,13 @@ async function main(): Promise<void> {
         const row = rows.find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-kollision`)}));
         if (!row) return null;
         const hasPush = [...row.querySelectorAll("button")].some((b) => /push|senden/i.test(b.textContent || ""));
-        return { block: true, button: hasPush, blocks: view.querySelectorAll(".wikijs-collision").length };
+        return { block: true, button: hasPush, blocks: [...view.querySelectorAll(".wikijs-collision")].filter((b) => (b.textContent || "").includes(${JSON.stringify(`${PREFIX}-kollision`)})).length };
       `,
       8000,
     );
     record(
       "4. Slug-Kollision: Warnblock da, Push für die Zeile gesperrt",
-      // `blocks === 1`: das Öffnen (onOpen) und der awaitete refresh() überlappen — ohne
+      // `blocks === 1` (Blöcke dieser Kollision; der Staging-Vault kann fremde tragen): das Öffnen (onOpen) und der awaitete refresh() überlappen — ohne
       // Serialisierung stand jeder Block zweimal im DOM (Welle 21, vw-w21).
       collision !== null && collision.block && !collision.button && collision.blocks === 1,
       collision === null
@@ -902,6 +909,12 @@ async function main(): Promise<void> {
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-stale`)}));
         [...row.querySelectorAll("button")].find((b) => /verwerfen|discard/i.test(b.textContent || "")).click();
+        // Rückfrage (seit Welle 22): im Dialog bestätigen.
+        for (let i = 0; i < 40; i++) {
+          await new Promise((r) => setTimeout(r, 150));
+          const go = [...document.querySelectorAll(".modal-container button")].find((b) => /^(discard|verwerfen)$/i.test((b.textContent || "").trim()));
+          if (go) { go.click(); break; }
+        }
         return true;
       `);
       staleForgetNotice = (await pollUntil<string>(cdp, `const n = document.querySelector(".notice"); return n ? n.textContent : null;`, 10000)) ?? "KEINE MELDUNG";

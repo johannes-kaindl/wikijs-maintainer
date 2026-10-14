@@ -543,7 +543,7 @@ async function main(): Promise<void> {
           if (m) {
             if (/removed locally/i.test(m.textContent || "")) return true;
             // Rueckfrage vor "Push all changes" (seit Welle 22): bestaetigen, dann geht es weiter.
-            if (/push \d+ page/i.test(m.textContent || "")) {
+            if (/push \\d+ page/i.test(m.textContent || "")) {
               const go = [...m.querySelectorAll("button")].find((b) => /^push$/i.test((b.textContent || "").trim()));
               if (go) go.click();
             }
