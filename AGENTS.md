@@ -116,7 +116,7 @@ hier reichen URL + API-Key.
 
 ## Commands
 
-- `npm run gate` — voller Gate: `lint` + `typecheck` + `typecheck:scripts` + `test`
+- `npm run gate` — voller Gate: `lint` + `typecheck` + `typecheck:test` (src + tests) + `typecheck:scripts` + `test`
   + `check:pure` + `build`. Vor jedem Commit erwartet.
 - `npm run dev` — esbuild-Watch-Build.
 - `npm test` — `check-no-abs-paths` + vitest.
