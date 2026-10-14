@@ -18,6 +18,8 @@ const PULLABLE = new Set(["remote-changed", "new-remote"]);
 
 export class WikijsStatusView extends ItemView {
   private showUnchanged = false;
+  /** Zaehler der Laeufe: nur der zuletzt gestartete `refresh()` darf zeichnen. */
+  private run = 0;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -43,17 +45,25 @@ export class WikijsStatusView extends ItemView {
   }
 
   async refresh(): Promise<void> {
+    // Serialisiert: der Container wird erst NACH dem Warten geleert, und ein Lauf, der von einem
+    // spaeter gestarteten ueberholt wurde, zeichnet nichts. Vorher leerten zwei ueberlappende
+    // Laeufe beide vor dem `await` und hingen beide danach an (jede Zeile doppelt im DOM).
+    const run = ++this.run;
     const container = this.contentEl;
-    container.empty();
-    container.createEl("h3", { text: t("view.title") });
 
     let plan: BuiltPlan;
     try {
       plan = await this.service().buildPlan();
     } catch (err) {
+      if (run !== this.run) return;
+      container.empty();
+      container.createEl("h3", { text: t("view.title") });
       container.createEl("p", { text: t("notice.error", err instanceof Error ? err.message : String(err)) });
       return;
     }
+    if (run !== this.run) return;
+    container.empty();
+    container.createEl("h3", { text: t("view.title") });
 
     new Setting(container)
       .setName(t("view.showUnchanged"))

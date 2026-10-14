@@ -530,3 +530,46 @@ describe("WikijsStatusView — Kollisionshinweis verdeckt den Zustand nicht", ()
     expect(desc).toContain(t("status.create"));
   });
 });
+
+// Gemessen in Welle 21 (vw-w21): zwei ueberlappende refresh() leerten beide den Container vor dem
+// Warten und haengten beide danach an — jede Zeile stand zweimal im DOM, und ein doppelter
+// Push-Klick war moeglich. Das Ergebnis darf nur der LETZTE Lauf zeichnen.
+describe("WikijsStatusView — refresh() ist serialisiert", () => {
+  function slowService(plan: BuiltPlan, delays: number[]): SyncService {
+    let call = 0;
+    return {
+      buildPlan: () => new Promise<BuiltPlan>((resolve) => setTimeout(() => resolve(plan), delays[call++] ?? 0)),
+    } as unknown as SyncService;
+  }
+  const planMitKollision = (): BuiltPlan => ({
+    entries: [entry("a/x", "update")],
+    meta: new Map([["a/x", meta()]]),
+    collisions: [{ wikiPath: "a/y", vaultPaths: ["A/y.md", "a/y.md"] }],
+    ambiguousNames: [],
+  });
+
+  it("zwei ueberlappende refresh() zeichnen Kollision und Zeile genau einmal", async () => {
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => slowService(planMitKollision(), [30, 5]));
+    const first = view.refresh();
+    const second = view.refresh();
+    await Promise.all([first, second]);
+    expect(view.contentEl.querySelectorAll(".wikijs-collision")).toHaveLength(1);
+    expect(view.contentEl.querySelectorAll(".setting-item").filter((el: any) => el.__setting?.nameValue === "a/x")).toHaveLength(1);
+  });
+
+  it("zeichnet das Ergebnis des zuletzt gestarteten Laufs, auch wenn ein frueherer spaeter fertig wird", async () => {
+    const alt = planMitKollision();
+    const neu: BuiltPlan = { ...alt, collisions: [] };
+    const plans = [alt, neu];
+    let call = 0;
+    const service = {
+      buildPlan: () => {
+        const mine = call++;
+        return new Promise<BuiltPlan>((resolve) => setTimeout(() => resolve(plans[mine] as BuiltPlan), mine === 0 ? 30 : 1));
+      },
+    } as unknown as SyncService;
+    const view = new WikijsStatusView(new WorkspaceLeaf(), () => service);
+    await Promise.all([view.refresh(), view.refresh()]);
+    expect(view.contentEl.querySelectorAll(".wikijs-collision")).toHaveLength(0);
+  });
+});

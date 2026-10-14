@@ -12,6 +12,8 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 - **Pages are now identified by locale and path together.** A wiki can hold the same path in several languages (for example `home` in English and German), and the plugin keyed pages by path alone: one page overwrote the other in the sync plan and a push could target the page of the wrong language. The plugin now only sees pages of the configured **Wiki locale** and tells them apart from other locales. If your existing pages live in a different locale than that setting, they no longer appear as the same page: set **Wiki locale** to the locale they live in.
 
+- **The status view no longer shows every row twice when it refreshes while a refresh is still running.** Two overlapping refreshes (opening the view and clicking Refresh on a slow wiki, or toggling *Show unchanged*) both cleared the view first and both appended afterwards, so you could click Push twice on the same row. Only the most recently started refresh draws now.
+
 ### Changed
 
 - **The page description now comes from the frontmatter field `description`, with `summary` as a fallback.** `description` is the field name Wiki.js itself uses, so a vault pulled from an existing wiki keeps its descriptions on the next push instead of losing them. A note with both fields uses `description`; notes that only use `summary` behave as before.

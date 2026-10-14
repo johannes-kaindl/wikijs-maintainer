@@ -586,7 +586,7 @@ async function main(): Promise<void> {
     `;
     await cdp.evaluate(refreshView);
 
-    const collision = await pollUntil<{ block: boolean; button: boolean }>(
+    const collision = await pollUntil<{ block: boolean; button: boolean; blocks: number }>(
       cdp,
       `
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
@@ -599,14 +599,18 @@ async function main(): Promise<void> {
         const row = rows.find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-kollision`)}));
         if (!row) return null;
         const hasPush = [...row.querySelectorAll("button")].some((b) => /push|senden/i.test(b.textContent || ""));
-        return { block: true, button: hasPush };
+        return { block: true, button: hasPush, blocks: view.querySelectorAll(".wikijs-collision").length };
       `,
       8000,
     );
     record(
       "4. Slug-Kollision: Warnblock da, Push für die Zeile gesperrt",
-      collision !== null && collision.block && !collision.button,
-      collision === null ? "Block oder Zeile nicht gefunden" : `Push-Knopf ${collision.button ? "noch da" : "weg"}`,
+      // `blocks === 1`: das Öffnen (onOpen) und der awaitete refresh() überlappen — ohne
+      // Serialisierung stand jeder Block zweimal im DOM (Welle 21, vw-w21).
+      collision !== null && collision.block && !collision.button && collision.blocks === 1,
+      collision === null
+        ? "Block oder Zeile nicht gefunden"
+        : `Push-Knopf ${collision.button ? "noch da" : "weg"} · ${collision.blocks} Warnblock/-blöcke`,
     );
 
     // --- 5. Mehrdeutiger Name meldet, sperrt aber nicht --------------------
