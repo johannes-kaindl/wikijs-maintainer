@@ -52,9 +52,11 @@ import {
   attachTo,
   bereiteInstanzVor,
   Cdp,
+  clearNotices,
   closeExtraLeaves,
   openExisting,
   pollUntil,
+  requireUntil,
   requireVisible,
   setAppConfig,
   setPluginSetting,
@@ -165,8 +167,8 @@ async function pushNote(cdp: Cdp, path: string, timeoutMs = 20_000): Promise<voi
     throw new Error(`${path} liess sich nicht oeffnen — liegt sie im Vault?`);
   }
   await closeExtraLeaves(cdp);
+  await clearNotices(cdp);
   await cdp.evaluate(`
-    document.querySelectorAll(".notice").forEach((n) => n.remove());
     app.commands.executeCommandById(${JSON.stringify(`${PLUGIN_ID}:push-current-note`)});
     return true;
   `);
@@ -422,6 +424,11 @@ async function main(): Promise<void> {
         app.commands.executeCommandById(${JSON.stringify(`${PLUGIN_ID}:show-sync-status`)});
         return true;
       `);
+      // Erst warten, bis das Öffnen (`onOpen` → `refresh()`) fertig gezeichnet hat, dann einmal von Hand aktualisieren. Zwei
+      // überlappende `refresh()`-Läufe leeren den Container beide vor dem `await buildPlan()` und hängen danach beide an: die Ansicht
+      // trägt ihren Inhalt doppelt (gemessen 2026-10-14, vier von vier Läufen gegen den Stub; Befund am Plugin, `status-view.ts`).
+      await requireUntil(cdp, `document.querySelectorAll(".workspace-leaf-content[data-type='${STATUS_VIEW}'] .setting-item").length >= 2`,
+        "Status-Ansicht zeichnete nach dem Öffnen keine Zeilen", 15_000, 200);
       await cdp.evaluate(refreshStatusView);
       // Sidebar verbreitern: die Standardbreite (~300 px) macht aus jeder Zeile eine
       // Textwand. `setSize` wirkt asynchron (lokale Lektion aus local-image-generator);
@@ -431,11 +438,15 @@ async function main(): Promise<void> {
         app.workspace.rightSplit.setSize(560);
         return true;
       `);
-      await pollUntil<boolean>(cdp, `
+      // Ohne die Breite wäre das Bild die Textwand der Standardbreite: ein Timeout bricht ab (requireUntil), er nimmt nicht auf.
+      await requireUntil(cdp, `(() => {
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         return !!(view && view.getBoundingClientRect().width > 500);
-      `, 4000, 150);
-      const box = await pollUntil<Rect>(cdp, `
+      })()`, "Status-Ansicht erreichte die Breite von 500 px nicht", 4000, 150);
+      // Die Notice des letzten Pushes steht fünf Sekunden im Bild (gegen den schnellen Stub schnitt sie das Bild oben rechts an);
+      // die Aufnahme zeigt die Ansicht, nicht die Meldung.
+      await clearNotices(cdp);
+      const messeBox = `
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         if (!view) return null;
         const rows = [...view.querySelectorAll(".setting-item")];
@@ -448,7 +459,8 @@ async function main(): Promise<void> {
         if (!vc) return null;
         const r = vc.getBoundingClientRect();
         return { x: r.x, y: r.y, width: r.width, height: Math.min(vc.scrollHeight, r.height) };
-      `, 8000, 200);
+      `;
+      const box = await pollUntil<Rect>(cdp, messeBox, 8000, 200);
       if (box) {
         const png = await capture(cdp, box, 2);
         console.log(`  ✓ ${await writeShot(cdp, "overview.png", png, {
@@ -513,8 +525,8 @@ async function main(): Promise<void> {
         await app.fileManager.renameFile(file, to);
         return true;
       `);
+      await clearNotices(cdp);
       await cdp.evaluate(`
-        document.querySelectorAll(".notice").forEach((n) => n.remove());
         app.commands.executeCommandById(${JSON.stringify(`${PLUGIN_ID}:push-all-changes`)});
         return true;
       `);

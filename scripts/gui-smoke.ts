@@ -52,7 +52,9 @@
 // importiert, nicht vendored: sie ist plugin-neutral und lief zuvor byte-identisch in
 // sechs Repos. Fehlt das Dach (fremder Checkout), bricht esbuild beim Auflösen ab — das
 // ist die gewollte Meldung. Was ihr fehlt, wird DORT ergänzt, nicht hier nachgebaut.
-import { Cdp, attachTo, bereiteInstanzVor, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
+import { join } from "node:path";
+import { cwd } from "node:process";
+import { Cdp, attachTo, beimAbbruch, bereiteInstanzVor, clearNotices, istAbgebrochen, ladePluginNeu, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
 import { createBilanz, parseArgs, runDriver } from "../../tools/obsidian-cdp/bilanz.js";
 import { startWikiStub, type RunningWikiStub } from "./demo-wikijs.js";
 
@@ -206,7 +208,6 @@ const runCommand = (file: string | null, commandId: string, timeoutMs = 25000): 
   }
   if (app.workspace.getActiveFile()?.path !== ${JSON.stringify(file)}) return "DATEI WURDE NICHT AKTIV";
   `}
-  document.querySelectorAll(".notice").forEach((n) => n.remove());
   app.commands.executeCommandById(${JSON.stringify(commandId)});
   const deadline = Date.now() + ${timeoutMs};
   while (Date.now() < deadline) {
@@ -216,6 +217,13 @@ const runCommand = (file: string | null, commandId: string, timeoutMs = 25000): 
   }
   return "KEINE MELDUNG binnen ${timeoutMs} ms";
 `;
+
+/** `runCommand` ausführen. Vorher räumt die Brücke die Notices weg (`clearNotices`: Hauptfenster UND aktives Dokument), damit eine
+ *  Meldung aus einem früheren Schritt nicht als Abschluss dieses Commands gelesen wird. */
+async function fuehreCommandAus(cdp: Cdp, file: string | null, commandId: string, timeoutMs?: number): Promise<string> {
+  await clearNotices(cdp);
+  return cdp.evaluate<string>(runCommand(file, commandId, timeoutMs));
+}
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
@@ -260,30 +268,52 @@ async function main(): Promise<void> {
     return true;
   `;
 
-  // Ein SIGINT mitten im Lauf ueberspringt das `finally` unten NICHT im try/catch-Sinn,
-  // sondern beendet den Node-Prozess sofort — Punkt 6 verstellt `settings.apiKey` bewusst auf
-  // einen ungueltigen Wert (um die Authentifizierungs-Meldung zu erzwingen) und schreibt ihn
-  // zwar schon INLINE zurueck, aber zwischen dem Verstellen und dieser Zeile bleibt ein
-  // Zeitfenster, in dem ein Abbruch den echten Wiki.js-Schluessel dauerhaft durch den
-  // ungueltigen Test-String ersetzt — das Plugin liesse sich dann bis zur manuellen
-  // Reparatur nicht mehr authentifizieren. `previousApiKey` ist zum Zeitpunkt des Signals der
-  // jeweils aktuelle Wert (per closure, kein Snapshot).
-  let signalCleanupRunning = false;
-  const onAbortSignal = (signal: NodeJS.Signals): void => {
-    if (signalCleanupRunning) return;
-    signalCleanupRunning = true;
-    void (async () => {
-      console.log(`\n\nAbbruch durch ${signal} — raeume Vault-Zustand auf...`);
-      if (previousApiKey !== null) {
-        await cdp.evaluate(restoreSettings()).catch(() => { console.log("  ! Einstellungen konnten nicht zurueckgeschrieben werden — von Hand pruefen"); });
+  // Alles, was dieser Lauf am Wirt und am Wiki verändert, räumt EIN Schritt zurück: der Normalweg im `finally`
+  // (`zustand.schliesse()`), Ctrl-C/SIGTERM über das Abbruch-Modul der Brücke (Hauptzweig gesperrt, dieser Schritt darf noch
+  // senden, danach Bilanz, Exit 130). Punkt 6 verstellt `settings.apiKey` bewusst auf einen ungültigen Wert; zwischen dem
+  // Verstellen und dem Zurückschreiben bliebe bei einem Abbruch der echte Schlüssel durch den Test-String ersetzt.
+  // `previousApiKey` ist zum Zeitpunkt des Signals der jeweils aktuelle Wert (per closure, kein Snapshot).
+  // Aufräumen darf nie am Ergebnis hängen: auch ein abgebrochener Lauf gibt Vault und Wiki so zurück, wie er sie vorfand.
+  const zustandZurueck = async (): Promise<void> => {
+    if (previousApiKey !== null) {
+      await cdp.evaluate(restoreSettings()).catch(() => { console.log("  ! Einstellungen konnten nicht zurueckgeschrieben werden — von Hand pruefen"); });
+    }
+    if (!keep) {
+      await cdp
+        .evaluate(`
+          const doomed = app.vault.getFiles().filter((f) => f.path.includes(${JSON.stringify(PREFIX)}));
+          for (const f of doomed) await app.vault.delete(f);
+          const folders = app.vault.getAllFolders().filter((f) => f.path.includes(${JSON.stringify(PREFIX)}));
+          for (const f of folders) { try { await app.vault.delete(f, true); } catch {} }
+
+          // Die Snapshots MUESSEN mit weg. Bleiben sie liegen, waehrend die
+          // Wiki-Seiten geloescht werden, sieht der naechste Lauf den Zustand
+          // "remote-deleted" — und blockiert voellig korrekt jeden Push. Der
+          // Smoke waere dann genau einmal wiederholbar. (Am 2026-08-12 genau so
+          // passiert; die Meldung des Plugins hat es aufgedeckt.)
+          const dir = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].manifest.dir + "/snapshots";
+          if (await app.vault.adapter.exists(dir)) {
+            const listing = await app.vault.adapter.list(dir);
+            for (const file of listing.files) {
+              if (!file.endsWith(".json")) continue;
+              try {
+                const snapshot = JSON.parse(await app.vault.adapter.read(file));
+                if (String(snapshot.wikiPath || "").startsWith(${JSON.stringify(PREFIX)})) {
+                  await app.vault.adapter.remove(file);
+                }
+              } catch {}
+            }
+          }
+          return doomed.length;
+        `)
+        .catch(() => undefined);
+      if (wiki) {
+        const purged = await wiki.purge().catch(() => 0);
+        if (purged > 0) console.log(`\nAufgeräumt: ${purged} Wiki-Seite(n) des Smokes gelöscht.`);
       }
-      await stub?.close().catch(() => undefined);
-      cdp.close();
-      process.exit(130);
-    })();
+    }
   };
-  process.on("SIGINT", onAbortSignal);
-  process.on("SIGTERM", onAbortSignal);
+  const zustand = beimAbbruch(zustandZurueck, "Wirt und Wiki zurücksetzen (Einstellungen, Smoke-Dateien, Snapshots, Wiki-Seiten)");
 
   try {
     // Ohne Fokus drosselt Chromium den Renderer — der DOM bleibt leer, während die
@@ -343,14 +373,13 @@ async function main(): Promise<void> {
     // laufenden Renderer also NICHT. Ohne diesen Schritt misst der Smoke einen
     // aelteren Stand als den, der auf der Platte liegt — am 2026-08-12 lief genau
     // deshalb ein bereits behobener Fehler noch dreimal als rot durch.
-    await cdp.evaluate(`
-      await app.plugins.disablePlugin(${JSON.stringify(PLUGIN_ID)});
-      await app.plugins.enablePlugin(${JSON.stringify(PLUGIN_ID)});
-      return true;
-    `);
-    await new Promise((r) => setTimeout(r, 1200));
+    // `ladePluginNeu` prüft mit `repoMainJs` vor dem Reload, dass `main.js` im Vault der gebaute Repo-Stand ist (kein Store-Build),
+    // und stellt danach die Version auf der Platte neben die im Speicher. Die Kopfzeile nennt die Version NACH dem Reload.
+    const neu = await ladePluginNeu(cdp, PLUGIN_ID, { repoMainJs: join(cwd(), "main.js"), beruhigungMs: 1200 });
+    console.log(neu.hinweis);
+    if (!neu.geladen || !neu.aktuell) throw new Error(`Plugin nach dem Neuladen nicht auf dem Stand der Platte — ${neu.hinweis}`);
     const wikiUrl = stub?.url ?? plugin.baseUrl ?? "";
-    console.log(`Plugin ${plugin.version} · Wiki ${wikiUrl}${stub ? " (Stub)" : ""} · Sync-Ordner ${plugin.syncRoot} (neu geladen)\n`);
+    console.log(`Plugin ${neu.nachher.plugin} (Platte ${neu.platte}) · Wiki ${wikiUrl}${stub ? " (Stub)" : ""} · Sync-Ordner ${plugin.syncRoot} (neu geladen)\n`);
 
     // Der Schlüssel, mit dem der Treiber selbst spricht (nach dem Neuladen aus den Einstellungen).
     const token = await cdp.evaluate<string>(
@@ -419,7 +448,7 @@ async function main(): Promise<void> {
       if (old) await app.vault.modify(old, body); else await app.vault.create(path, body);
       return true;
     `);
-    const push1 = await cdp.evaluate<string>(runCommand(notePath("push"), `${PLUGIN_ID}:push-current-note`));
+    const push1 = await fuehreCommandAus(cdp, notePath("push"), `${PLUGIN_ID}:push-current-note`);
     const created = await wiki.find(`${PREFIX}-push`);
     record(
       "1. Push legt die Seite im Wiki an",
@@ -433,7 +462,7 @@ async function main(): Promise<void> {
       await app.vault.modify(file, "# Smoke\\n\\nZweite Fassung.\\n");
       return true;
     `);
-    const push2 = await cdp.evaluate<string>(runCommand(notePath("push"), `${PLUGIN_ID}:push-current-note`));
+    const push2 = await fuehreCommandAus(cdp, notePath("push"), `${PLUGIN_ID}:push-current-note`);
     const all = await wiki.list();
     const sameName = all.filter((p) => p.path === `${PREFIX}-push`);
     const body = created ? await wiki.content(created.id) : "";
@@ -602,9 +631,7 @@ async function main(): Promise<void> {
       if (old) await app.vault.modify(old, "Auth-Test"); else await app.vault.create(path, "Auth-Test");
       return true;
     `);
-    const authNotice = await cdp.evaluate<string>(
-      runCommand(`${root}/${PREFIX}-auth.md`, `${PLUGIN_ID}:push-current-note`),
-    );
+    const authNotice = await fuehreCommandAus(cdp, `${root}/${PREFIX}-auth.md`, `${PLUGIN_ID}:push-current-note`);
     record(
       "6. Falscher Schlüssel: Meldung benennt die Authentifizierung",
       /401|403|auth|schlüssel|key|berecht/i.test(authNotice),
@@ -665,7 +692,7 @@ async function main(): Promise<void> {
       if (old) await app.vault.modify(old, "# Belegt eigen\\n"); else await app.vault.create(path, "# Belegt eigen\\n");
       return true;
     `);
-    await cdp.evaluate(runCommand(ownPath, `${PLUGIN_ID}:push-current-note`));
+    await fuehreCommandAus(cdp, ownPath, `${PLUGIN_ID}:push-current-note`);
     await cdp.evaluate(dropSnapshot(`${PREFIX}-occupied-own`));
     await cdp.evaluate(refreshView);
     const ownRow = await pollUntil<{ desc: string; buttons: string[] }>(
@@ -676,10 +703,10 @@ async function main(): Promise<void> {
     const ownAdoptButton = ownRow?.buttons.some((b) => /übernehmen|adopt/i.test(b)) ?? false;
     let ownAdoptNotice = "";
     if (ownAdoptButton) {
+      await clearNotices(cdp);
       await cdp.evaluate(`
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-occupied-own`)}));
-        document.querySelectorAll(".notice").forEach((n) => n.remove());
         [...row.querySelectorAll("button")].find((b) => /übernehmen|adopt/i.test(b.textContent || "")).click();
         return true;
       `);
@@ -705,7 +732,7 @@ async function main(): Promise<void> {
       if (old) await app.vault.modify(old, "# Belegt fremd\\n"); else await app.vault.create(path, "# Belegt fremd\\n");
       return true;
     `);
-    await cdp.evaluate(runCommand(foreignPath, `${PLUGIN_ID}:push-current-note`));
+    await fuehreCommandAus(cdp, foreignPath, `${PLUGIN_ID}:push-current-note`);
     const foreignPage = await wiki.find(`${PREFIX}-occupied-foreign`);
     if (foreignPage) await wiki.setForeignContent(foreignPage.id, foreignPage.title, "Fremd geändert, nicht vom Plugin.");
     await cdp.evaluate(dropSnapshot(`${PREFIX}-occupied-foreign`));
@@ -718,10 +745,10 @@ async function main(): Promise<void> {
     const foreignAdoptButton = foreignRow?.buttons.some((b) => /übernehmen|adopt/i.test(b)) ?? false;
     let foreignAdoptNotice = "";
     if (foreignAdoptButton) {
+      await clearNotices(cdp);
       await cdp.evaluate(`
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-occupied-foreign`)}));
-        document.querySelectorAll(".notice").forEach((n) => n.remove());
         [...row.querySelectorAll("button")].find((b) => /übernehmen|adopt/i.test(b.textContent || "")).click();
         return true;
       `);
@@ -754,7 +781,7 @@ async function main(): Promise<void> {
       if (old) await app.vault.modify(old, "# Verwaist\\n"); else await app.vault.create(path, "# Verwaist\\n");
       return true;
     `);
-    await cdp.evaluate(runCommand(stalePath, `${PLUGIN_ID}:push-current-note`));
+    await fuehreCommandAus(cdp, stalePath, `${PLUGIN_ID}:push-current-note`);
     const stalePurged = await wiki.purge();
     await cdp.evaluate(`
       const file = app.vault.getAbstractFileByPath(${JSON.stringify(stalePath)});
@@ -766,10 +793,10 @@ async function main(): Promise<void> {
     const staleForgetButton = staleRow?.buttons.some((b) => /verwerfen|discard/i.test(b)) ?? false;
     let staleForgetNotice = "";
     if (staleForgetButton) {
+      await clearNotices(cdp);
       await cdp.evaluate(`
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-stale`)}));
-        document.querySelectorAll(".notice").forEach((n) => n.remove());
         [...row.querySelectorAll("button")].find((b) => /verwerfen|discard/i.test(b.textContent || "")).click();
         return true;
       `);
@@ -804,7 +831,7 @@ async function main(): Promise<void> {
       if (old) await app.vault.modify(old, "# Still\\n"); else await app.vault.create(path, "# Still\\n");
       return true;
     `);
-    await cdp.evaluate(runCommand(silentPath, `${PLUGIN_ID}:push-current-note`));
+    await fuehreCommandAus(cdp, silentPath, `${PLUGIN_ID}:push-current-note`);
     await cdp.evaluate(`
       const file = app.vault.getAbstractFileByPath(${JSON.stringify(silentPath)});
       await app.vault.modify(file, "# Still\\n\\nNoch eine Zeile.\\n");
@@ -818,13 +845,13 @@ async function main(): Promise<void> {
       // EIN Ausdruck, keine zwei Aufrufe: zwischen "Datei entfernen" und "Knopf
       // klicken" darf kein CDP-Roundtrip liegen, sonst gewinnt fast immer der
       // Dateibeobachter und die Rennbedingung, die dieser Punkt prüft, tritt nie ein.
+      await clearNotices(cdp);
       await cdp.evaluate(`
         const path = ${JSON.stringify(silentPath)};
         const file = app.vault.getAbstractFileByPath(path);
         if (file) await app.vault.adapter.remove(path);
         const view = document.querySelector(".workspace-leaf-content[data-type='${STATUS_VIEW}']");
         const row = [...view.querySelectorAll(".setting-item")].find((r) => (r.textContent || "").includes(${JSON.stringify(`${PREFIX}-silent`)}));
-        document.querySelectorAll(".notice").forEach((n) => n.remove());
         [...row.querySelectorAll("button")].find((b) => /push/i.test(b.textContent || "")).click();
         return true;
       `);
@@ -877,45 +904,8 @@ async function main(): Promise<void> {
     );
 
   } finally {
-    // Aufräumen darf nie am Ergebnis hängen: auch ein abgebrochener Lauf gibt Vault
-    // und Wiki so zurück, wie er sie vorgefunden hat.
-    if (previousApiKey !== null) {
-      await cdp.evaluate(restoreSettings()).catch(() => undefined);
-    }
-    if (!keep) {
-      await cdp
-        .evaluate(`
-          const doomed = app.vault.getFiles().filter((f) => f.path.includes(${JSON.stringify(PREFIX)}));
-          for (const f of doomed) await app.vault.delete(f);
-          const folders = app.vault.getAllFolders().filter((f) => f.path.includes(${JSON.stringify(PREFIX)}));
-          for (const f of folders) { try { await app.vault.delete(f, true); } catch {} }
-
-          // Die Snapshots MUESSEN mit weg. Bleiben sie liegen, waehrend die
-          // Wiki-Seiten geloescht werden, sieht der naechste Lauf den Zustand
-          // "remote-deleted" — und blockiert voellig korrekt jeden Push. Der
-          // Smoke waere dann genau einmal wiederholbar. (Am 2026-08-12 genau so
-          // passiert; die Meldung des Plugins hat es aufgedeckt.)
-          const dir = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}].manifest.dir + "/snapshots";
-          if (await app.vault.adapter.exists(dir)) {
-            const listing = await app.vault.adapter.list(dir);
-            for (const file of listing.files) {
-              if (!file.endsWith(".json")) continue;
-              try {
-                const snapshot = JSON.parse(await app.vault.adapter.read(file));
-                if (String(snapshot.wikiPath || "").startsWith(${JSON.stringify(PREFIX)})) {
-                  await app.vault.adapter.remove(file);
-                }
-              } catch {}
-            }
-          }
-          return doomed.length;
-        `)
-        .catch(() => undefined);
-      if (wiki) {
-        const purged = await wiki.purge().catch(() => 0);
-        if (purged > 0) console.log(`\nAufgeräumt: ${purged} Wiki-Seite(n) des Smokes gelöscht.`);
-      }
-    }
+    await zustand.schliesse();
+    if (istAbgebrochen()) return;
     if (stub) {
       const gesehen = stub.log();
       const nach = (o: string): number => gesehen.filter((e) => e.outcome === o).length;
@@ -926,10 +916,6 @@ async function main(): Promise<void> {
       await stub.close().catch(() => undefined);
     }
     cdp.close();
-    // Abmelden, sonst haengt ein SPAETES Signal (nach normalem Abschluss, cdp schon zu) den
-    // Prozess in onAbortSignal an einer toten Verbindung auf.
-    process.off("SIGINT", onAbortSignal);
-    process.off("SIGTERM", onAbortSignal);
     // Auch nach einem Abbruch mitten im Lauf kommt die Bilanz; `runDriver` macht daraus Exit 2.
     bilanz.abschluss();
   }
