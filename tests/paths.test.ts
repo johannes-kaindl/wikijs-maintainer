@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   findSlugCollisions,
-  slugifySegment,
   snapshotFileName,
   vaultPathToWikiPath,
   wikiPathToVaultPath,
 } from "../src/core/paths";
 
-describe("slugifySegment", () => {
+import { slugify } from "../src/vendor/kit/slug";
+
+/** Die Slug-Regel dieses Plugins: Kit-`slugify` mit `punctuation: "drop"` (Pfadstabilitaet). */
+const slugifySegment = (s: string): string => slugify(s, { punctuation: "drop" });
+
+describe("Slug-Regel (Kit slugify, punctuation drop)", () => {
   it("schreibt klein und ersetzt Leerzeichen durch Bindestriche", () => {
     expect(slugifySegment("DNS Setup")).toBe("dns-setup");
   });
@@ -22,6 +26,24 @@ describe("slugifySegment", () => {
 
   it("fasst Bindestrich-Ketten zusammen und trimmt sie an den Raendern", () => {
     expect(slugifySegment("--Netzwerk – Setup--")).toBe("netzwerk-setup");
+  });
+});
+
+// Seit dem Wechsel auf das Kit (code-kit 0.27) behalten Zeichen mit Kompatibilitaets-Zerlegung ihren
+// Grundbuchstaben, statt geloescht zu werden. Fuer einen Wiki-Pfad mit so einem Zeichen ist das eine
+// sichtbare Aenderung (im CHANGELOG): der Test haelt die neue Regel fest.
+describe("Zeichen mit Zerlegung (Kit-Regel)", () => {
+  it("behaelt den Grundbuchstaben statt ihn zu loeschen", () => {
+    expect(vaultPathToWikiPath("_published/Čeština.md", "_published")).toBe("cestina");
+    expect(vaultPathToWikiPath("_published/m² Fläche.md", "_published")).toBe("m2-flaeche");
+    expect(vaultPathToWikiPath("_published/ﬁnale.md", "_published")).toBe("finale");
+    expect(vaultPathToWikiPath("_published/Zürich/Café Où.md", "_published")).toBe("zuerich/cafe-ou");
+  });
+
+  it("die bisher gepinnten Pfade aendern sich nicht", () => {
+    expect(vaultPathToWikiPath("_published/Backup täglich 04:35.md", "_published")).toBe("backup-taeglich-0435");
+    expect(vaultPathToWikiPath("_published/Node.js Grundlagen.md", "_published")).toBe("nodejs-grundlagen");
+    expect(vaultPathToWikiPath("_published/E-Mail-Sicherheitsmaßnahmen.md", "_published")).toBe("e-mail-sicherheitsmassnahmen");
   });
 });
 

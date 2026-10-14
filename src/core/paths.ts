@@ -3,24 +3,12 @@
 // beide Richtungen deterministisch sein: derselbe Vault-Pfad ergibt ueber Jahre
 // denselben Wiki-Pfad, sonst zeigt jeder Snapshot ins Leere.
 
-const TRANSLIT: Record<string, string> = {
-  ä: "ae", ö: "oe", ü: "ue", ß: "ss", à: "a", á: "a", â: "a", è: "e", é: "e",
-  ê: "e", ë: "e", í: "i", ì: "i", î: "i", ó: "o", ò: "o", ô: "o", ú: "u", ù: "u", û: "u", ç: "c", ñ: "n",
-};
+import { slugify } from "../vendor/kit/slug";
 
-/** Ein einzelnes Pfad-Segment → Wiki-Slug. Bewusst konservativ: nur a-z, 0-9, `-`.
- *  Satzzeichen ohne Trennfunktion (`:`, `!`, `(` …) werden geloescht statt durch
- *  `-` ersetzt — sonst wuerde aus "04:35" "04-35" statt "0435". Erst danach werden
- *  verbleibende Whitespace-/Bindestrich-Ketten zu einem einzelnen `-` zusammengefasst. */
-export function slugifySegment(segment: string): string {
-  const lower = segment.toLowerCase();
-  let out = "";
-  for (const ch of lower) out += TRANSLIT[ch] ?? ch;
-  return out
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/[\s-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+/** Ein einzelnes Pfad-Segment → Wiki-Slug: Kit-`slugify` mit `punctuation: "drop"`. Satzzeichen ohne
+ *  Trennfunktion (`:`, `!`, `(` …) werden geloescht statt durch `-` ersetzt — sonst wuerde aus
+ *  "04:35" "04-35" statt "0435", und ein Wiki-Pfad muss ueber Jahre derselbe bleiben. */
+const slugOf = (segment: string): string => slugify(segment, { punctuation: "drop" });
 
 function stripTrailingSlash(p: string): string {
   return p.replace(/\/+$/, "");
@@ -34,7 +22,7 @@ export function vaultPathToWikiPath(vaultPath: string, syncRoot: string): string
   const prefix = root === "" ? "" : `${root}/`;
   if (prefix !== "" && !vaultPath.startsWith(prefix)) return null;
   // Nur `.md` traegt hier eine Endung, die verschwinden soll. Bei jeder anderen Datei
-  // faellt die Endung ebenfalls — sonst zieht `slugifySegment` sie punktlos in den Slug
+  // faellt die Endung ebenfalls — sonst zieht `slugOf` sie punktlos in den Slug
   // (`Not-A-Page.canvas` → `not-a-pagecanvas`). Die Unterscheidung ist noetig, weil ein
   // Punkt im Notiznamen legitim ist: bei `.md` darf NUR `.md` fallen, sonst wuerde aus
   // `Node.js Grundlagen.md` der Pfad `node`.
@@ -43,7 +31,7 @@ export function vaultPathToWikiPath(vaultPath: string, syncRoot: string): string
     ? withoutRoot.replace(/\.md$/i, "")
     : withoutRoot.replace(/\.[^./]+$/, "");
   if (rest === "") return null;
-  return rest.split("/").map(slugifySegment).filter((s) => s !== "").join("/");
+  return rest.split("/").map(slugOf).filter((s) => s !== "").join("/");
 }
 
 /** Wiki-Pfad → Vault-Pfad fuer den Pull. Der Titel wird zum Dateinamen (er ist die
@@ -60,7 +48,7 @@ export function wikiPathToVaultPath(wikiPath: string, syncRoot: string, title: s
   const folder = segments.slice(0, -1).join("/");
   const clean = (text: string): string => text.replace(/[\\/:*?"<>|]/g, "-").replace(/^-+|-+$/g, "");
   const fromTitle = clean(title);
-  const name = title.trim() !== "" && slugifySegment(fromTitle) === last ? fromTitle : clean(last);
+  const name = title.trim() !== "" && slugOf(fromTitle) === last ? fromTitle : clean(last);
   return [root, folder, `${name}.md`].filter((p) => p !== "").join("/");
 }
 

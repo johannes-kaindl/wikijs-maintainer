@@ -25,7 +25,9 @@
         "i18n",
         "timeout",
         "diff",
-        "secrets"
+        "secrets",
+        "slug",
+        "secret-value"
       ]
     },
     {

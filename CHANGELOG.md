@@ -28,10 +28,8 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 - Kit vendoring raised from `obsidian-kit` 0.57.0 to 0.60.1 and from `code-kit` 0.24.0 to 0.27.1. Nothing changes for users from this step alone: of the modules this plugin vendors, only the version headers differ (the releases in between changed other modules: tool providers, share export, slug, local time stamps, secret values, which this plugin does not use yet).
 - **The page description now comes from the frontmatter field `description`, with `summary` as a fallback.** `description` is the field name Wiki.js itself uses, so a vault pulled from an existing wiki keeps its descriptions on the next push instead of losing them. A note with both fields uses `description`; notes that only use `summary` behave as before.
-
-### Changed
-
 - **The page description now comes from the frontmatter field `description`, with `summary` as a fallback.** `description` is the field name Wiki.js itself uses, so a vault pulled from an existing wiki keeps its descriptions on the next push instead of losing them. A note with both fields uses `description`; notes that only use `summary` behave as before.
+- **Wiki paths: note names are now turned into slugs by the shared slug function of the code-kit library.** Same result as before for `a-z`, digits, umlauts, `ß`, the 18 accented letters the old table listed, and punctuation, which is still removed (`04:35` stays `0435`, `Node.js` stays `nodejs`). **One difference can change a wiki path:** a character that Unicode can decompose into a base letter now keeps that letter instead of being deleted. `Čeština` was `etina` and is now `cestina`, `m²` was `m` and is now `m2`, `ﬁ` was dropped and is now `fi`, and letters such as `ï`, `õ`, `å`, which the old table lacked, are kept as `i`, `o`, `a` instead of vanishing. **A note whose name contains such a character now maps to a different wiki path:** the page at the old path shows as removed locally and the note as new. After updating, check the *Removed locally* rows in the status view, or rename the note back to the old spelling. Nothing is moved or deleted on its own.
 
 ## [0.3.2] — 2026-10-12
 
