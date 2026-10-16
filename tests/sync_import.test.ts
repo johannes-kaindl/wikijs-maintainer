@@ -4,7 +4,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { SyncService, type BuiltPlan } from "../src/obsidian/sync-service";
 import { planSync, type SyncEntry, type LocalPage } from "../src/core/sync-plan";
-import { vaultPathToWikiPath } from "../src/core/paths";
+import { effectiveWikiPath, vaultPathToWikiPath } from "../src/core/paths";
 import { extractPageMeta } from "../src/core/page-meta";
 import type { Snapshot } from "../src/core/snapshot";
 
@@ -131,5 +131,39 @@ describe("SyncService.importExisting", () => {
     const report = await svc.importExisting({ entries, meta: new Map(), collisions: [], ambiguousNames: [] }, "wiki-wins");
     expect(report).toMatchObject({ created: 0, overwritten: 0 });
     expect(client.fetchPage).not.toHaveBeenCalled();
+  });
+});
+
+describe("Pfad-Anker beim Import (Wiki-Pfade außerhalb von a-z0-9-)", () => {
+  const SPECIAL: Page[] = [
+    { id: 7, path: "lgs/email-sicherheitsmaßnahmen", title: "E-Mail-Sicherheitsmaßnahmen", description: "", content: "text\n", updatedAt: "T1", tags: [], isPublished: true },
+    { id: 8, path: "Netzwerk/Äpfel-Übersicht", title: "Äpfel", description: "", content: "obst\n", updatedAt: "T2", tags: [], isPublished: true },
+    { id: 9, path: "netzwerk/dns", title: "DNS Setup", description: "", content: "dns\n", updatedAt: "T3", tags: [], isPublished: true },
+  ];
+
+  it("eine Seite, deren Pfad sich nicht aus dem Dateinamen zurückrechnet, bekommt wiki_path im Frontmatter; eine ableitbare nicht", async () => {
+    const { svc, written, plan } = setup(SPECIAL);
+    await svc.importExisting(plan, "wiki-wins");
+    const by = (needle: string) => [...written].find(([k]) => k.includes(needle))?.[1] as string;
+    expect(by("sicherheitsmaßnahmen")).toContain("wiki_path: lgs/email-sicherheitsmaßnahmen");
+    expect(by("Übersicht")).toContain("wiki_path: Netzwerk/Äpfel-Übersicht");
+    expect(by("dns.md")).not.toContain("wiki_path");
+  });
+
+  it("danach plant planSync alles als unchanged — auch ß, Umlaut und Großbuchstaben im Wiki-Pfad", async () => {
+    const { svc, saved, written, plan } = setup(SPECIAL);
+    await svc.importExisting(plan, "wiki-wins");
+    const locals: LocalPage[] = [...written].map(([vaultPath, raw]) => ({ vaultPath, wikiPath: effectiveWikiPath(vaultPath, "_published", raw) as string, raw, transformed: raw }));
+    const remotes = SPECIAL.map((p) => ({ id: p.id, path: p.path, title: p.title, updatedAt: p.updatedAt }));
+    const after = planSync({ locals, snapshots: saved, remotes });
+    expect(after.map((e) => e.state)).toEqual(["unchanged", "unchanged", "unchanged"]);
+  });
+
+  it("pullOne einer neuen Remote-Seite schreibt den Anker ebenfalls", async () => {
+    const { svc, written } = setup(SPECIAL);
+    const entry = planSync({ locals: [], snapshots: [], remotes: [{ id: 7, path: "lgs/email-sicherheitsmaßnahmen", title: "E-Mail-Sicherheitsmaßnahmen", updatedAt: "T1" }] })[0] as SyncEntry;
+    expect(entry.state).toBe("new-remote");
+    await svc.pullOne(entry);
+    expect([...written.values()][0]).toContain("wiki_path: lgs/email-sicherheitsmaßnahmen");
   });
 });

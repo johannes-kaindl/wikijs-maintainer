@@ -147,4 +147,24 @@ describe("collectLocalPages", () => {
     expect(out.meta.get("a")?.missing).toEqual([]);
     expect(out.meta.get("b")?.missing).toEqual(["seitentyp"]);
   });
+
+  it("ein Pfad-Anker im Frontmatter bestimmt den Wiki-Pfad (ß bleibt ß), und Wikilinks lösen auf ihn auf", async () => {
+    const vault = fakeVault({
+      "_published/email-sicherheitsmaßnahmen.md": "---\nwiki_path: email-sicherheitsmaßnahmen\n---\ntext",
+      "_published/A.md": "siehe [[email-sicherheitsmaßnahmen]]",
+    });
+    const out = await collectLocalPages(vault as never, "_published");
+    expect(out.pages.map((p) => p.wikiPath).sort()).toEqual(["a", "email-sicherheitsmaßnahmen"]);
+    expect(out.pages.find((p) => p.wikiPath === "a")?.transformed).toContain("(/email-sicherheitsmaßnahmen)");
+    expect(out.collisions).toEqual([]);
+  });
+
+  it("Kollisionen werden an den wirksamen Pfaden gemessen: zwei Anker auf denselben Pfad kollidieren", async () => {
+    const vault = fakeVault({
+      "_published/A.md": "---\nwiki_path: gleich\n---\nx",
+      "_published/B.md": "---\nwiki_path: gleich\n---\ny",
+    });
+    const out = await collectLocalPages(vault as never, "_published");
+    expect(out.collisions).toEqual([{ wikiPath: "gleich", vaultPaths: ["_published/A.md", "_published/B.md"] }]);
+  });
 });

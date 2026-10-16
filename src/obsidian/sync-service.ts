@@ -8,7 +8,7 @@ import { collectLocalPages, type AmbiguousName } from "./vault-source";
 import { planSync, type SyncEntry } from "../core/sync-plan";
 import type { TransformResult } from "../core/transform";
 import type { SlugCollision } from "../core/paths";
-import { wikiPathToVaultPath } from "../core/paths";
+import { ANCHOR_KEY, anchorNeeded, wikiPathToVaultPath } from "../core/paths";
 import type { ConflictChoice } from "./conflict-modal";
 import type { RemovalChoice } from "./removal-modal";
 import { parseFrontmatter, serializeFrontmatter, type FmValue } from "../vendor/kit/frontmatter";
@@ -23,11 +23,13 @@ function localFrontmatterPrefix(raw: string | undefined): string {
 
 /** Frontmatter aus den Feldern einer Wiki-Seite: Titel, Beschreibung, Tags und, bei einer
  *  unveroeffentlichten Seite, `wiki_published: false`. Ohne sie wuerde der erste Push nach dem
- *  Import Beschreibung und Tags leeren und eine bewusst unsichtbare Seite veroeffentlichen. */
-function wikiFrontmatter(page: { title: string; description: string; tags: string[]; isPublished?: boolean }): string {
+ *  Import Beschreibung und Tags leeren und eine bewusst unsichtbare Seite veroeffentlichen.
+ *  `anchor`: der Wiki-Pfad als `wiki_path`, wenn der Dateiname ihn nicht zurueckrechnet (Pfad-Anker). */
+function wikiFrontmatter(page: { title: string; description: string; tags: string[]; isPublished?: boolean }, anchor?: string): string {
   const data: Record<string, FmValue> = {};
   const order: string[] = [];
   const put = (key: string, value: FmValue): void => { data[key] = value; order.push(key); };
+  if (anchor !== undefined) put(ANCHOR_KEY, anchor);
   if (page.title.trim() !== "") put("title", page.title.trim());
   if (page.description.trim() !== "") put("description", page.description.trim());
   if (page.tags.length > 0) put("tags", page.tags);
@@ -304,7 +306,9 @@ export class SyncService {
     // Der lokale Block bleibt deshalb unveraendert stehen, nur der Body folgt dem Wiki. `raw` ist
     // die zusammengesetzte Datei (sonst gaelte sie beim naechsten Plan als lokal geaendert),
     // `pushed` der Wiki-Inhalt.
-    const written = localFrontmatterPrefix(entry.local?.raw) + page.content;
+    // Eine neue Datei bekommt den Pfad-Anker, wenn der Dateiname den Wiki-Pfad nicht zurueckrechnet; eine bestehende traegt ihren.
+    const anchor = entry.local === undefined && anchorNeeded(entry.wikiPath, vaultPath, this.deps.syncRoot()) ? wikiFrontmatter({ title: "", description: "", tags: [] }, entry.wikiPath) : "";
+    const written = (entry.local === undefined ? anchor : localFrontmatterPrefix(entry.local.raw)) + page.content;
     await this.deps.writeNote(vaultPath, written);
     await this.deps.store.save({
       version: 1, wikiPath: entry.wikiPath, pageId,
@@ -345,7 +349,8 @@ export class SyncService {
         const page = await this.deps.client.fetchPage(entry.pageId);
         const vaultPath = existing?.vaultPath ?? wikiPathToVaultPath(entry.wikiPath, this.deps.syncRoot(), page.title);
         const prefix = existing === undefined ? "" : localFrontmatterPrefix(existing.raw);
-        const written = (prefix !== "" ? prefix : wikiFrontmatter(page)) + page.content;
+        const anchor = existing === undefined && anchorNeeded(entry.wikiPath, vaultPath, this.deps.syncRoot()) ? entry.wikiPath : undefined;
+        const written = (prefix !== "" ? prefix : wikiFrontmatter(page, anchor)) + page.content;
         await write(vaultPath, written);
         await this.deps.store.save({
           version: 1, wikiPath: entry.wikiPath, pageId: entry.pageId,

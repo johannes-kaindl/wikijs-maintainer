@@ -1,7 +1,7 @@
 // Vault-Ordner → LocalPage[]. Der einzige Ort, an dem Datei-I/O auf die pure
 // Transformation trifft.
 import type { TFile, Vault } from "obsidian";
-import { findSlugCollisions, vaultPathToWikiPath, type SlugCollision } from "../core/paths";
+import { anchorFromFrontmatter, effectiveWikiPath, findSlugCollisions, vaultPathToWikiPath, type SlugCollision } from "../core/paths";
 import { transformForWiki, type TransformResult } from "../core/transform";
 import type { LocalPage } from "../core/sync-plan";
 
@@ -22,6 +22,10 @@ export interface CollectedPages {
 
 export async function collectLocalPages(vault: Vault, syncRoot: string, requiredFields: string[] = []): Promise<CollectedPages> {
   const files = vault.getMarkdownFiles().filter((f: TFile) => vaultPathToWikiPath(f.path, syncRoot) !== null);
+  // Erst lesen, dann Pfade rechnen: der Pfad-Anker (`wiki_path`) steht im Frontmatter der Notiz.
+  const raws = new Map<string, string>();
+  for (const file of files) raws.set(file.path, await vault.cachedRead(file));
+  const wikiPathOf = (file: TFile): string | null => effectiveWikiPath(file.path, syncRoot, raws.get(file.path) ?? "");
 
   // Erst die vollstaendige Karte bauen, dann transformieren: ein Wikilink darf nicht
   // davon abhaengen, ob sein Ziel zufaellig frueher gelesen wurde.
@@ -36,7 +40,7 @@ export async function collectLocalPages(vault: Vault, syncRoot: string, required
   const keyPaths = new Map<string, string[]>();
   const pathsByBasename = new Map<string, string[]>();
   for (const file of files) {
-    const wikiPath = vaultPathToWikiPath(file.path, syncRoot);
+    const wikiPath = wikiPathOf(file);
     if (wikiPath === null) continue;
     const segments = file.path.replace(/\.md$/i, "").split("/");
     for (let i = segments.length - 1; i >= 0; i--) {
@@ -73,13 +77,13 @@ export async function collectLocalPages(vault: Vault, syncRoot: string, required
   const pages: LocalPage[] = [];
   const meta = new Map<string, TransformResult>();
   for (const file of files) {
-    const wikiPath = vaultPathToWikiPath(file.path, syncRoot);
+    const wikiPath = wikiPathOf(file);
     if (wikiPath === null) continue;
-    const raw = await vault.cachedRead(file);
+    const raw = raws.get(file.path) ?? "";
     const result = transformForWiki(raw, file.basename, resolve, requiredFields);
     pages.push({ vaultPath: file.path, wikiPath, raw, transformed: result.content });
     meta.set(wikiPath, result);
   }
 
-  return { pages, meta, collisions: findSlugCollisions(files.map((f: TFile) => f.path), syncRoot), ambiguousNames };
+  return { pages, meta, collisions: findSlugCollisions(files.map((f: TFile) => f.path), syncRoot, (path) => anchorFromFrontmatter(raws.get(path) ?? "")), ambiguousNames };
 }

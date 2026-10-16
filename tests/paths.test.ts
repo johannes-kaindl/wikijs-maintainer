@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  anchorFromFrontmatter,
+  anchorNeeded,
+  effectiveWikiPath,
   findSlugCollisions,
   snapshotFileName,
   vaultPathToWikiPath,
@@ -135,5 +138,36 @@ describe("snapshotFileName", () => {
 
   it("unterscheidet verschiedene Pfade", () => {
     expect(snapshotFileName("a/b")).not.toBe(snapshotFileName("a/c"));
+  });
+});
+
+describe("Pfad-Anker (wiki_path im Frontmatter)", () => {
+  const fm = (value: string) => `---\nwiki_path: ${value}\n---\ntext`;
+  it("ohne Anker rechnet der Push den Pfad ab, und ß wird zu ss (das ist der Verlust, den der Anker verhindert)", () => {
+    expect(effectiveWikiPath("_published/email-sicherheitsmaßnahmen.md", "_published", "text")).toBe("email-sicherheitsmassnahmen");
+  });
+  it("der Anker gewinnt: ß, Umlaut und Großbuchstaben im Wiki-Pfad bleiben erhalten", () => {
+    expect(effectiveWikiPath("_published/x.md", "_published", fm("lgs/email-sicherheitsmaßnahmen"))).toBe("lgs/email-sicherheitsmaßnahmen");
+    expect(effectiveWikiPath("_published/x.md", "_published", fm("Netzwerk/Äpfel-Übersicht"))).toBe("Netzwerk/Äpfel-Übersicht");
+  });
+  it("eine Datei außerhalb der Sync-Wurzel bleibt null, auch mit Anker", () => {
+    expect(effectiveWikiPath("Entwurf/x.md", "_published", fm("a/b"))).toBeNull();
+  });
+  it("ein unbrauchbarer Anker gilt nicht: leer, '..', leeres Segment, Backslash", () => {
+    for (const bad of ["", "a/../b", "a//b", "a\\b", "/", ".."]) expect(anchorFromFrontmatter(fm(`"${bad}"`))).toBeNull();
+    expect(effectiveWikiPath("_published/Foo.md", "_published", fm('"a/../b"'))).toBe("foo");
+  });
+  it("führende und folgende Schrägstriche werden abgeschnitten", () => {
+    expect(anchorFromFrontmatter(fm("/lgs/größe/"))).toBe("lgs/größe");
+  });
+  it("anchorNeeded: nur wenn der Dateiname den Wiki-Pfad nicht zurückrechnet", () => {
+    expect(anchorNeeded("netzwerk/dns", "_published/netzwerk/dns.md", "_published")).toBe(false);
+    expect(anchorNeeded("email-sicherheitsmaßnahmen", "_published/email-sicherheitsmaßnahmen.md", "_published")).toBe(true);
+    expect(anchorNeeded("Netzwerk/DNS", "_published/Netzwerk/DNS.md", "_published")).toBe(true);
+  });
+  it("findSlugCollisions rechnet mit den wirksamen Pfaden, wenn ein Auflöser übergeben wird", () => {
+    const anchors: Record<string, string> = { "_published/a.md": "gleich", "_published/b.md": "gleich" };
+    const out = findSlugCollisions(["_published/a.md", "_published/b.md"], "_published", (v) => anchors[v] ?? null);
+    expect(out).toEqual([{ wikiPath: "gleich", vaultPaths: ["_published/a.md", "_published/b.md"] }]);
   });
 });

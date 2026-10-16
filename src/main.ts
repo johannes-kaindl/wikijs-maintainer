@@ -2,7 +2,7 @@ import { getLanguage, Notice, Plugin, type TFile, type WorkspaceLeaf } from "obs
 import { defineStrings, pickLang, setLang, t } from "./vendor/kit/i18n";
 import { STRINGS } from "./i18n/strings";
 import { mergeWikijsSettings, type WikijsSettings } from "./core/settings-types";
-import { vaultPathToWikiPath } from "./core/paths";
+import { effectiveWikiPath } from "./core/paths";
 import { WikijsSettingsTab } from "./obsidian/settings";
 import { SyncService } from "./obsidian/sync-service";
 import { SnapshotStore } from "./obsidian/snapshot-store";
@@ -199,7 +199,7 @@ export default class WikijsMaintainerPlugin extends Plugin {
       return;
     }
     const service = this.buildService();
-    const wikiPath = vaultPathToWikiPath(file.path, this.settings.syncRoot);
+    const wikiPath = effectiveWikiPath(file.path, this.settings.syncRoot, await this.app.vault.cachedRead(file));
     if (wikiPath === null) {
       new Notice(t("notice.outsideRoot", this.settings.syncRoot));
       return;
@@ -289,7 +289,7 @@ export default class WikijsMaintainerPlugin extends Plugin {
       return;
     }
     const service = this.buildService();
-    const wikiPath = vaultPathToWikiPath(file.path, this.settings.syncRoot);
+    const wikiPath = effectiveWikiPath(file.path, this.settings.syncRoot, await this.app.vault.cachedRead(file));
     if (wikiPath === null) {
       new Notice(t("notice.outsideRoot", this.settings.syncRoot));
       return;
