@@ -4,6 +4,8 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-10-16
+
 ### Fixed
 
 - **A wiki page whose path holds a `ß`, an umlaut or capital letters keeps its path across import, pull and the next push.** The push derives the wiki path from the file name (`email-sicherheitsmaßnahmen` became `email-sicherheitsmassnahmen`), so the old page showed as removed locally and a second one as new. A note whose file name does not map back to its wiki path now carries a `wiki_path` line in its frontmatter (written by *Import existing wiki pages* and by pulling a new page), and that path is used from then on. Notes without the line behave as before. Because the path is fixed by the line, renaming such a note no longer moves its wiki page; remove the `wiki_path` line to let the file name decide again.
