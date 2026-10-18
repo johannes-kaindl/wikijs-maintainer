@@ -1,4 +1,4 @@
-// vendored from code-kit@0.27.1, src/ts/pure/secret-value.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from code-kit@0.31.0, src/ts/pure/secret-value.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 // Origin: wikijs-maintainer `src/core/api-key-storage.ts` (36 lines, `loadApiKey`/`persistApiKey`; its header names a
 // yijing-oracle source that no longer exists) and yijing-oracle `src/core/settings/migrate.ts:68-88` (the `strandedKey`
 // return value). Waiting consumers: paperless-storage (API token in `data.json`) and vault-rag (`mcpToken`, generated).

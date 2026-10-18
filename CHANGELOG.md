@@ -4,6 +4,10 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- Internal housekeeping: the shared kit libraries were updated (obsidian-kit 0.63.0, code-kit 0.31.0). The changes in between (a copy button on the thinking block, a text-area suggester, Claude as a language-model provider, LM Studio detection from model metadata, kit texts for image, OCR and audio errors) touch no part this plugin shows; what changes visibly for you is listed separately.
+
 ## [0.4.1] — 2026-10-16
 
 ### Fixed

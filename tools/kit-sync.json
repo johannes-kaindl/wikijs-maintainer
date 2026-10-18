@@ -1,10 +1,10 @@
 {
   "sources": {
     "obsidian-kit": {
-      "ref": "0.60.1"
+      "ref": "0.63.0"
     },
     "code-kit": {
-      "ref": "0.27.1"
+      "ref": "0.31.0"
     }
   },
   "targets": [
@@ -27,7 +27,8 @@
         "diff",
         "secrets",
         "slug",
-        "secret-value"
+        "secret-value",
+        "rel-path"
       ]
     },
     {
