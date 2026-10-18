@@ -54,7 +54,7 @@
 // ist die gewollte Meldung. Was ihr fehlt, wird DORT ergänzt, nicht hier nachgebaut.
 import { join } from "node:path";
 import { cwd } from "node:process";
-import { Cdp, attachTo, beimAbbruch, bereiteInstanzVor, clearNotices, istAbgebrochen, ladePluginNeu, pollUntil, requireVisible } from "../../tools/obsidian-cdp/cdp.js";
+import { Cdp, attachTo, beimAbbruch, bereiteInstanzVor, clearNotices, istAbgebrochen, ladePluginNeu, pollUntil, requireVisible, schliesseEinstellungen } from "../../tools/obsidian-cdp/cdp.js";
 import { createBilanz, parseArgs, runDriver } from "../../tools/obsidian-cdp/bilanz.js";
 import { startWikiStub, type RunningWikiStub } from "./demo-wikijs.js";
 
@@ -350,6 +350,12 @@ async function main(): Promise<void> {
     // Vertrauensdialog bestätigen, Restricted Mode aufheben, Plugin laden (frisches Profil).
     const vorbereitet = await bereiteInstanzVor(cdp, { pluginIds: [PLUGIN_ID], nurVault: vault, sprache: "en" });
     console.log(`Instanz: ${vorbereitet.hinweis}`);
+    // Auf einem FRISCHEN Profil bleibt nach `bereiteInstanzVor` das Einstellungen-Fenster das aktive Dokument (gemessen 2026-10-18,
+    // 1.14.4: `activeDocument.title` „Einstellungen - …“, `activeDocument !== document`): jedes Modal und jede Notice rendert dort, der
+    // Treiber liest das Hauptfenster und findet nichts. Folge war „erster Lauf rot, 378 s“ (jeder Notice-Abruf wartet 25 s). Darum
+    // das Hauptfenster hier wieder zum aktiven Dokument machen.
+    const aktiv = await schliesseEinstellungen(cdp);
+    if (!aktiv.hauptAktiv) console.log("WARNUNG: Hauptfenster ist nicht das aktive Dokument — Modale und Meldungen koennten im Einstellungen-Fenster stehen.");
 
     const plugin = await cdp.evaluate<{ ok: boolean; version?: string; baseUrl?: string; syncRoot?: string; apiKey?: string }>(`
       const p = app.plugins.plugins[${JSON.stringify(PLUGIN_ID)}];
