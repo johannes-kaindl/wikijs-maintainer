@@ -4,6 +4,7 @@
 // denselben Wiki-Pfad, sonst zeigt jeder Snapshot ins Leere.
 
 import { parseFrontmatter } from "../vendor/kit/frontmatter";
+import { checkRelPath } from "../vendor/kit/rel-path";
 import { slugify } from "../vendor/kit/slug";
 
 /** Ein einzelnes Pfad-Segment → Wiki-Slug: Kit-`slugify` mit `punctuation: "drop"`. Satzzeichen ohne
@@ -48,15 +49,18 @@ function trimSlashes(text: string): string {
 }
 
 /** Der Pfad-Anker einer Notiz: `wiki_path` im Frontmatter, oder `null`, wenn er fehlt oder nicht brauchbar ist
- *  (leer, `..`, leeres Segment, Backslash). Fuehrende und folgende `/` fallen. Ein unbrauchbarer Anker gilt als
- *  fehlend, damit eine Notiz nie auf einen Pfad zeigt, der aus dem Wiki-Namensraum herausfuehrt. */
+ *  (leer, NUL, `..`, leeres Segment, Backslash). Fuehrende und folgende `/` fallen. Ein unbrauchbarer Anker gilt als
+ *  fehlend, damit eine Notiz nie auf einen Pfad zeigt, der aus dem Wiki-Namensraum herausfuehrt.
+ *
+ *  Die Segmentregeln liegen im Kit (code-kit `rel-path`, `checkRelPath`: prueft, schreibt nichts um, weil der Wert ein Name
+ *  ist, der zu einem Server geht). Unterschiede zur frueheren lokalen Pruefung, begruendet: ein NUL-Byte ist unbrauchbar, und ein
+ *  Segment, das mit Leerraum zu `.` oder `..` wird (`".. "`), zaehlt als `..` — ein Dateisystem, das Blanks am Ende abschneidet,
+ *  liest es so. Die aeusseren `/` kappt weiter diese Funktion, `checkRelPath` hat dafuer keine Option. */
 export function anchorFromFrontmatter(raw: string): string | null {
   const value = parseFrontmatter(raw).data[ANCHOR_KEY];
   if (typeof value !== "string") return null;
-  const path = trimSlashes(value.trim());
-  if (path === "" || path.includes("\\")) return null;
-  if (path.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) return null;
-  return path;
+  const checked = checkRelPath(trimSlashes(value.trim()));
+  return checked.ok ? checked.path : null;
 }
 
 /** Der Wiki-Pfad einer Notiz: der Pfad-Anker, sonst die Ableitung aus dem Vault-Pfad. Ein Anker aendert nichts

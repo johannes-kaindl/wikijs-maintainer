@@ -157,6 +157,13 @@ describe("Pfad-Anker (wiki_path im Frontmatter)", () => {
     for (const bad of ["", "a/../b", "a//b", "a\\b", "/", ".."]) expect(anchorFromFrontmatter(fm(`"${bad}"`))).toBeNull();
     expect(effectiveWikiPath("_published/Foo.md", "_published", fm('"a/../b"'))).toBe("foo");
   });
+  it("ein NUL-Byte und ein Segment, das mit Leerraum zu '.' oder '..' wird, machen den Anker unbrauchbar (code-kit rel-path)", () => {
+    expect(anchorFromFrontmatter(fm("\"a\u0000b\""))).toBeNull();
+    expect(anchorFromFrontmatter(fm('"a/.. /b"'))).toBeNull();
+    expect(anchorFromFrontmatter(fm('"a/ . /b"'))).toBeNull();
+    // ein Name mit Punkten bleibt ein Name
+    expect(anchorFromFrontmatter(fm('"a/b.c/..d"'))).toBe("a/b.c/..d");
+  });
   it("führende und folgende Schrägstriche werden abgeschnitten", () => {
     expect(anchorFromFrontmatter(fm("/lgs/größe/"))).toBe("lgs/größe");
   });
