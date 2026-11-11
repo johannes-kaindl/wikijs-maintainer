@@ -4,6 +4,8 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.4.3] — 2026-11-11
+
 ### Changed
 
 - **The "Removed locally" question (Unpublish, Delete, Keep) now uses the shared choice dialog of `obsidian-kit` 0.76.0.** Texts, order of the buttons, the main button (Unpublish) and the way to cancel stay as they were: closing the dialog with Esc or a click outside still means Keep, never Unpublish or Delete. The buttons now sit in Obsidian's standard button row of a dialog. The conflict dialog with the line diff is unchanged.
