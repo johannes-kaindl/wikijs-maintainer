@@ -2,6 +2,6 @@
   "source": "obsidian-kit",
   "version": "0.63.0",
   "sha": "9209efa",
-  "vendored": "clock.ts, confirm.ts, folder-suggest.ts, settings_walker.ts, help-setting.ts, secrets.ts",
+  "vendored": "clock.ts, confirm.ts, folder-suggest.ts, settings_walker.ts, help-setting.ts, choice-modal.ts (obsidian-kit@0.76.0, 9993cba), secrets.ts",
   "note": "Verbatim snapshot. Never hand-edit. Pins in tools/kit-sync.json, re-vendor via tools/sync-kit.sh (zentrales kit-sync im Dach)."
 }

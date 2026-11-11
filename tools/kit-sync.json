@@ -40,7 +40,11 @@
         "confirm",
         "folder-suggest",
         "settings_walker",
-        "help-setting"
+        "help-setting",
+        {
+          "name": "choice-modal",
+          "ref": "0.76.0"
+        }
       ]
     },
     {
