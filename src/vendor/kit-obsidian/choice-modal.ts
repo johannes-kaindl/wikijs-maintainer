@@ -1,4 +1,4 @@
-// vendored from obsidian-kit@0.76.0, src/obsidian/choice-modal.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from obsidian-kit@0.83.0, src/obsidian/choice-modal.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 import { App, ButtonComponent, Modal } from "obsidian";
 
 export interface ChoiceOption<T extends string> {
@@ -19,6 +19,9 @@ export interface ChoiceOptions<T extends string> {
   options: ChoiceOption<T>[];
   /** Gesetzt → zusätzlicher Abbrechen-Knopf links (liefert `null`). Ohne ihn bricht man mit Esc oder Klick daneben ab. */
   cancelLabel?: string;
+  /** Optionaler Körper-Hook: zeichnet eigenes DOM (Diff, Zusammenfassung, Liste) zwischen `message` und die Knopfzeile.
+   *  Bekommt das `contentEl` des Dialogs und hängt seine Kinder dort an; Knöpfe, Esc und Auflösung bleiben beim Dialog. */
+  render?: (contentEl: HTMLElement) => void;
 }
 
 /** Auswahl-Dialog mit drei und mehr Antworten (das Kit-`confirmAction` ist zweiwertig).
@@ -39,6 +42,7 @@ class ChoiceModal<T extends string> extends Modal {
     if (message !== undefined) {
       for (const line of Array.isArray(message) ? message : [message]) this.contentEl.createEl("p", { text: line });
     }
+    this.opts.render?.(this.contentEl);
     const btns = this.contentEl.createDiv({ cls: "modal-button-container" });
     if (this.opts.cancelLabel !== undefined) {
       new ButtonComponent(btns).setButtonText(this.opts.cancelLabel).onClick(() => { this.finish(null); });

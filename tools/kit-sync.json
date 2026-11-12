@@ -47,7 +47,7 @@
         "help-setting",
         {
           "name": "choice-modal",
-          "ref": "0.76.0"
+          "ref": "0.83.0"
         }
       ]
     },

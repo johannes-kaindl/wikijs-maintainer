@@ -4,6 +4,10 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **The conflict dialog (Keep local, Keep remote, Cancel) now uses the shared choice dialog of `obsidian-kit` 0.83.0, like the removal question.** The line diff, the texts, the order of the buttons and the main button (Keep local) stay as they were; closing the dialog with Esc or a click outside still means Cancel, nothing is written. The buttons now sit in Obsidian's standard button row of a dialog.
+
 ## [0.4.3] — 2026-11-11
 
 ### Changed
