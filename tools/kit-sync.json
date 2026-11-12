@@ -28,7 +28,11 @@
         "secrets",
         "slug",
         "secret-value",
-        "rel-path"
+        "rel-path",
+        {
+          "name": "split-list",
+          "ref": "0.63.0"
+        }
       ]
     },
     {

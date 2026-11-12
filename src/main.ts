@@ -5,6 +5,7 @@ import { mergeWikijsSettings, type WikijsSettings } from "./core/settings-types"
 import { effectiveWikiPath } from "./core/paths";
 import { WikijsSettingsTab } from "./obsidian/settings";
 import { SyncService } from "./obsidian/sync-service";
+import { splitList } from "./vendor/kit/split-list";
 import { SnapshotStore } from "./obsidian/snapshot-store";
 import { WikiClient } from "./wikijs/client";
 import { askConflict } from "./obsidian/conflict-modal";
@@ -164,7 +165,7 @@ export default class WikijsMaintainerPlugin extends Plugin {
       vault: this.app.vault,
       syncRoot: () => this.settings.syncRoot,
       locale: this.settings.locale,
-      requiredFields: this.settings.requiredFields.split(",").map((f) => f.trim()).filter((f) => f !== ""),
+      requiredFields: splitList(this.settings.requiredFields),
       resolveConflict: (entry, remoteContent) =>
         askConflict(this.app, {
           wikiPath: entry.wikiPath,
