@@ -46,6 +46,10 @@ npm run shots -- --list                                  # Vertrag anzeigen
 npm run shots:check                                      # Standard-Konformität prüfen
 ```
 
+## Stand der Aufnahmen
+
+`conflict-modal.png` und `removal-modal.png` sind am 2026-11-15 neu aufgenommen, nachdem beide Dialoge auf den gemeinsamen Auswahldialog des Kits umgestellt wurden (neuer Knopfsatz: „Keep local“, „Keep remote“, „Cancel“ und „Unpublish“, „Delete“, „Keep“). Sie entstanden **am lokalen Wiki.js-Stub** (`scripts/demo-wikijs.ts`, als eigener Prozess gestartet, `WIKIJS_URL` seine Adresse, `WIKIJS_TOKEN` ein beliebiger Wert), nicht an einer echten Instanz; die Seiten heißen `zz-shots/…` wie am Original. `overview.png` und `settings.png` blieben unverändert (Stand 2026-08-18).
+
 ## Was der Lauf voraussetzt
 
 - Ein gebautes Plugin (`npm run build`) — der Vault zeigt den Stand, der gerade geändert
