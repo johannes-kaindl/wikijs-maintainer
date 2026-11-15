@@ -6,6 +6,7 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **A note with an empty front matter block (`---` directly followed by `---`) is pushed without those two lines, and a note whose closing line is `---` followed by a space is read as having no front matter block** (the shared reader of `obsidian-kit` 0.90.0; before, the empty block went to the wiki as text and the closing line with a space still closed the block). Obsidian reads both the same way. The kit pins are now `obsidian-kit` 0.93.0 and `code-kit` 0.73.0.
 - **The conflict dialog (Keep local, Keep remote, Cancel) now uses the shared choice dialog of `obsidian-kit` 0.83.0, like the removal question.** The line diff, the texts, the order of the buttons and the main button (Keep local) stay as they were; closing the dialog with Esc or a click outside still means Cancel, nothing is written. The buttons now sit in Obsidian's standard button row of a dialog.
 
 ## [0.4.3] — 2026-11-11

@@ -1,4 +1,4 @@
-// vendored from code-kit@0.31.0, src/ts/pure/secret-value.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from code-kit@0.73.0, src/ts/pure/secret-value.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 // Origin: wikijs-maintainer `src/core/api-key-storage.ts` (36 lines, `loadApiKey`/`persistApiKey`; its header names a
 // yijing-oracle source that no longer exists) and yijing-oracle `src/core/settings/migrate.ts:68-88` (the `strandedKey`
 // return value). Waiting consumers: paperless-storage (API token in `data.json`) and vault-rag (`mcpToken`, generated).
@@ -46,6 +46,7 @@
 // - *No `trim()`.* Only line breaks are stripped (`stripCrLf`, as the keychain does): a blank can be part of a secret. A
 //   settings field that wants trimming (paperless-storage's "token without leading spaces") trims before calling.
 // - An unreadable keychain (`get` throws) does not stop the load: the plaintext stays, state `"kept"`, `error` says why.
+import { errorMessage } from "./error-message";
 import { stripCrLf, type SecretStore } from "./secrets";
 
 /** Where the value ended up. */
@@ -79,10 +80,6 @@ export interface LoadedSecretValue {
   error?: string;
 }
 
-function messageOf(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
-
 /** Reads a single-value secret when the settings are loaded.
  *
  *  @param stored what `data.json` holds for the field (`""` if absent)
@@ -98,7 +95,7 @@ export function loadSecretValue(stored: string, store: SecretStore | null, id: s
     inStore = store.get(id) ?? "";
   } catch (e) {
     // An unreadable keychain must not stop the plugin from starting, and must not make the plaintext look migrated.
-    return { value: plain, persisted: stored, dirty: false, state: plain === "" ? "empty" : "kept", error: messageOf(e) };
+    return { value: plain, persisted: stored, dirty: false, state: plain === "" ? "empty" : "kept", error: errorMessage(e) };
   }
   if (inStore !== "") {
     const dirty = stored !== "";
@@ -110,7 +107,7 @@ export function loadSecretValue(stored: string, store: SecretStore | null, id: s
   try {
     store.set(id, plain);
   } catch (e) {
-    return { value: plain, persisted: stored, dirty: false, state: "kept", error: messageOf(e) };
+    return { value: plain, persisted: stored, dirty: false, state: "kept", error: errorMessage(e) };
   }
   const back = store.get(id) ?? "";
   if (back === "") {
@@ -142,20 +139,20 @@ export function persistSecretValue(value: string, store: SecretStore | null, id:
     try {
       store.delete(id);
     } catch (e) {
-      return { value: "", persisted: "", state: "empty", error: messageOf(e) };
+      return { value: "", persisted: "", state: "empty", error: errorMessage(e) };
     }
     return { value: "", persisted: "", state: "empty" };
   }
   try {
     store.set(id, plain);
   } catch (e) {
-    return { value: plain, persisted: plain, state: "kept", error: messageOf(e) };
+    return { value: plain, persisted: plain, state: "kept", error: errorMessage(e) };
   }
   let back: string;
   try {
     back = store.get(id) ?? "";
   } catch (e) {
-    return { value: plain, persisted: plain, state: "kept", error: messageOf(e) };
+    return { value: plain, persisted: plain, state: "kept", error: errorMessage(e) };
   }
   if (back === "") {
     return { value: plain, persisted: plain, state: "kept", error: "the keychain accepted the value but did not keep it" };
