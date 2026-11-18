@@ -17,14 +17,11 @@
  *
  * ## Voraussetzung
  *
- * Der Smoke läuft in einer **Zweitinstanz** mit eigenem Profil und eigenem Port, nie in der
- * regulären Instanz (Dach-AGENTS § Staging-Vaults); `--port` ist Pflicht, es gibt keinen Standard.
- * Der Vault `wikijs-maintainer` unter `$STAGING_VAULTS_DIR` kommt aus dem Fixture
- * (`npm run build && npm run shots -- --setup`). Profil: die aktuelle `.asar` der regulären
- * Instanz ins `--user-data-dir` kopieren, Vault und `"language":"en"` in dessen `obsidian.json`
- * eintragen, mit `--remote-debugging-port=<port>` starten. Vertrauensdialog und Restricted Mode
- * erledigt `bereiteInstanzVor` selbst. Den CDP-Lock für den eigenen Port halten
- * (`python3 ~/.claude/hooks/obsidian-cdp-lock.py acquire --label wikijs-maintainer --intent … --exclusive focus --port <port>`).
+ * Lauf: `tools/obsidian-cdp/messlauf.sh` (Dach, README § Messlauf in einem Aufruf) startet die Zweitinstanz, hält den Lock (`--exclusive focus`, davor, mit `export`)
+ * und räumt auf; das Rezept steht nur dort. Für diesen Treiber: `REPO=wikijs-maintainer OHNE_SETUP=1`.
+ *
+ * Besonderheiten dieses Treibers (aus dem früheren Rezept übernommen):
+ *   Staging-Vault: `npm run build && npm run shots -- --setup` (der Treiber kennt kein `--setup`, deshalb `OHNE_SETUP=1` und den Vault einmal vorher so bauen).
  *
  * Das Smoke-Ziel ist standardmäßig der **Stub**: der Treiber startet ihn im eigenen Prozess (Port 0),
  * setzt Wiki-URL und einen ASCII-Platzhalter-Schlüssel in die Plugin-Einstellungen und schreibt am
