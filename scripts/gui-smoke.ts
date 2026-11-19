@@ -18,10 +18,7 @@
  * ## Voraussetzung
  *
  * Lauf: `tools/obsidian-cdp/messlauf.sh` (Dach, README § Messlauf in einem Aufruf) startet die Zweitinstanz, hält den Lock (`--exclusive focus`, davor, mit `export`)
- * und räumt auf; das Rezept steht nur dort. Für diesen Treiber: `REPO=wikijs-maintainer OHNE_SETUP=1`.
- *
- * Besonderheiten dieses Treibers (aus dem früheren Rezept übernommen):
- *   Staging-Vault: `npm run build && npm run shots -- --setup` (der Treiber kennt kein `--setup`, deshalb `OHNE_SETUP=1` und den Vault einmal vorher so bauen).
+ * und räumt auf; das Rezept steht nur dort. Für diesen Treiber: `REPO=wikijs-maintainer SETUP_BEFEHL='npm run shots -- --setup'`.
  *
  * Das Smoke-Ziel ist standardmäßig der **Stub**: der Treiber startet ihn im eigenen Prozess (Port 0),
  * setzt Wiki-URL und einen ASCII-Platzhalter-Schlüssel in die Plugin-Einstellungen und schreibt am
