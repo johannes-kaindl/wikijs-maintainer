@@ -4,6 +4,8 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.4.5] — 2026-11-24
+
 ### Fixed
 - **A page description with a line break no longer tears the properties of the imported note.** Import and pull wrote title and description from Wiki.js into the note's properties as they were; a line break in the description ended the value early and left the rest of it as stray lines in the properties block. The value is now written quoted on one line and reads back unchanged (obsidian-kit 0.96.0).
 
