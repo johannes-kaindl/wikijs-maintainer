@@ -1,7 +1,7 @@
 {
   "source": "obsidian-kit",
-  "version": "0.93.0",
-  "sha": "7997447",
+  "version": "0.106.0",
+  "sha": "abb26f3",
   "vendored": "obsidian-mock.ts, window-timers.ts",
   "note": "Verbatim snapshot. Never hand-edit. Pins in tools/kit-sync.json, re-vendor via tools/sync-kit.sh (zentrales kit-sync im Dach).",
   "license": "AGPL-3.0-or-later"

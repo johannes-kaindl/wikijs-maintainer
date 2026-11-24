@@ -154,7 +154,9 @@ describe("Pfad-Anker (wiki_path im Frontmatter)", () => {
     expect(effectiveWikiPath("Entwurf/x.md", "_published", fm("a/b"))).toBeNull();
   });
   it("ein unbrauchbarer Anker gilt nicht: leer, '..', leeres Segment, Backslash", () => {
-    for (const bad of ["", "a/../b", "a//b", "a\\b", "/", ".."]) expect(anchorFromFrontmatter(fm(`"${bad}"`))).toBeNull();
+    // Die Werte stehen als JSON-Text im Frontmatter (ein gequoteter YAML-Wert mit Escapes): seit Kit 0.96.0 liest `parseFrontmatter` `\b` als Rueckschritt-Zeichen wie Obsidian,
+    // ein Backslash im Pfad steht deshalb als `\\`.
+    for (const bad of ["", "a/../b", "a//b", "a\\b", "/", ".."]) expect(anchorFromFrontmatter(fm(JSON.stringify(bad)))).toBeNull();
     expect(effectiveWikiPath("_published/Foo.md", "_published", fm('"a/../b"'))).toBe("foo");
   });
   it("ein NUL-Byte und ein Segment, das mit Leerraum zu '.' oder '..' wird, machen den Anker unbrauchbar (code-kit rel-path)", () => {

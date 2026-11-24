@@ -66,6 +66,16 @@ describe("SyncService.importExisting", () => {
     expect(meta).toMatchObject({ title: "DNS Setup", description: "Wie der Resolver haengt", tags: ["netzwerk", "dns"], body: "# DNS\n\nText\n" });
   });
 
+  it("eine Beschreibung mit Zeilenumbruch zerreisst das Frontmatter nicht: Datei und Wiki-Wert lesen sich gleich (Datenfix obsidian-kit 0.96.0)", async () => {
+    const seite: Page = { id: 5, path: "netzwerk/mehrzeilig", title: "Mehrzeilig", description: "Zeile eins\nZeile zwei: mit Doppelpunkt", content: "# Text\n", updatedAt: "T5", tags: ["a"], isPublished: true };
+    const { svc, written, plan } = setup([seite]);
+    await svc.importExisting(plan, "wiki-wins");
+    const datei = [...written.values()][0] as string;
+    const meta = extractPageMeta(datei, "x");
+    expect(meta).toMatchObject({ title: "Mehrzeilig", description: "Zeile eins\nZeile zwei: mit Doppelpunkt", tags: ["a"], body: "# Text\n" });
+    expect(datei.split("\n").filter((l) => l === "---").length).toBe(2);
+  });
+
   it("eine im Wiki unveroeffentlichte Seite bekommt wiki_published: false (sonst wuerde der erste Push sie veroeffentlichen)", async () => {
     const { svc, written, plan } = setup();
     await svc.importExisting(plan, "wiki-wins");

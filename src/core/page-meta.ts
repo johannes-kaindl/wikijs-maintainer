@@ -1,7 +1,7 @@
 // Frontmatter → Wiki.js-Seitenmetadaten. Das Frontmatter selbst wird NIE gepusht
 // (Spec § 3): es ist Vault-Verwaltung, in der Wiki-Seite waere es sichtbarer Muell.
 // Ausgewertet werden nur title, description (Rueckfall summary), tags und wiki_published.
-import { parseFrontmatter } from "../vendor/kit/frontmatter";
+import { parseFrontmatter, type FmValue } from "../vendor/kit/frontmatter";
 
 export interface PageMeta {
   title: string;
@@ -14,18 +14,18 @@ export interface PageMeta {
   body: string;
 }
 
-function asString(value: string | number | string[] | undefined): string {
+function asString(value: FmValue | undefined): string {
   if (value === undefined) return "";
   return Array.isArray(value) ? value.join(", ") : String(value);
 }
 
-function asTags(value: string | number | string[] | undefined): string[] {
+function asTags(value: FmValue | undefined): string[] {
   if (value === undefined) return [];
   const list = Array.isArray(value) ? value : String(value).split(",");
   return list.map((tag) => tag.trim()).filter((tag) => tag !== "");
 }
 
-function isBlank(value: string | number | string[] | undefined): boolean {
+function isBlank(value: FmValue | undefined): boolean {
   if (value === undefined) return true;
   return Array.isArray(value) ? value.length === 0 : String(value).trim() === "";
 }
@@ -35,7 +35,7 @@ const PUBLISHED_TRUE = new Set(["true", "yes", "on", "1"]);
 /** Sichtbarkeit der Wiki-Seite. Fehlt das Feld oder ist es leer, gilt `true`. Ein Wert, der
  *  weder als Ja noch als Nein lesbar ist, gilt als `false`: eine Seite mit privaten Daten
  *  soll an einem Tippfehler unsichtbar bleiben, nicht online gehen. */
-function asPublished(value: string | number | string[] | undefined): boolean {
+function asPublished(value: FmValue | undefined): boolean {
   if (value === undefined) return true;
   const text = Array.isArray(value) ? value.join(",") : String(value);
   const normalized = text.trim().toLowerCase();
