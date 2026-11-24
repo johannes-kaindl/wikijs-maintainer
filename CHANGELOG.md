@@ -4,6 +4,12 @@ All notable changes to this plugin. Format: [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+- **A page whose title or description is only a clock time (`9:30`, `14:55`) keeps it as text in the imported note.** Import and pull wrote the bare text into the properties, and Obsidian 1.15.0 reads it as a number (14:55 becomes 895), so the next push would have sent the number to Wiki.js. The value is now written in quotes (kit `frontmatter` 0.108.0).
+
+### Changed
+- Kit pins move to obsidian-kit 0.108.0 and code-kit 0.88.0.
+
 ## [0.4.5] — 2026-11-24
 
 ### Fixed

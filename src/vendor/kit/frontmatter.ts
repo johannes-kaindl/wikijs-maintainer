@@ -1,4 +1,4 @@
-// vendored from obsidian-kit@0.106.0, src/pure/frontmatter.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from obsidian-kit@0.108.0, src/pure/frontmatter.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 // frontmatter.ts — yaml_lite: flache Skalare + einfache Listen. Kein obsidian-Import.
 //
 // Gehoben aus vault-rag/src/frontmatter.ts (Serialisier-/Parse-Pfad); die smart-apply-
@@ -216,6 +216,12 @@ const FLOW_BREAKERS = /[\][{}]/;
 // Was ein YAML-Leser (Kern-Schema, js-yaml und Obsidian) als Zahl liest: Ganzzahl, Gleitkomma mit Exponent (`1e3`), `0x…`, `0o…`, `.inf`, `.nan`. Als Text geschrieben, muss es in Anführungszeichen.
 const YAML_NUMBER_LIKE = /^(?:[+-]?(?:\d[\d_]*(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|0x[0-9a-fA-F_]+|0o[0-7_]+|[+-]?\.(?:inf|nan))$/i;
 
+// Die Sexagesimalform nach YAML 1.1 (`14:55`, `1:30:00`, `-1:30`, `190:20:30.15`): ein YAML-1.1-Leser macht eine Zahl daraus (`14:55` → 895), das Kern-Schema (js-yaml 4) lässt sie Text. protocol-droid maß 2026-11-03 an Obsidian 1.15.0 die Zahl;
+// ⚠️ am 2026-11-24 lasen `parseYaml` UND `metadataCache` in Obsidian 1.15.1 ein bares `14:55` als Text (Pilot `pilot/frontmatter-parseyaml.ts`, Punkt C3): die Premise gilt dort NICHT. Das Quoting bleibt, weil es für jeden 1.1-Leser (Obsidian bis 1.15.0, andere Werkzeuge) richtig ist und für Text nichts kostet.
+// Die Regex ist wörtlich die des „TIME“-Formats der YAML-1.1-Schemas im Bündel von Obsidian (gemessen in `obsidian-1.15.1.asar`): Ganzzahl `[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+`, Gleitkomma dieselbe Form mit `.` und
+// Nachkommastellen. Eine Gruppe nach dem Doppelpunkt ist ein oder zwei Ziffern mit höchstens 59 (`14:60` bleibt Text); `14:5` ist schon eine Zahl, `abc:def`, `12:30pm` und `10:` nicht.
+const YAML_SEXAGESIMAL = /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+(?:\.[0-9_]*)?$/;
+
 // Zeilenumbruch (LF, CR, NEL, LS, PS) und Steuerzeichen außer dem Tabulator stehen in einem YAML-Skalar nur als Escape in doppelten Anführungszeichen; roh bräche ein Umbruch den Block, NUL und die übrigen lehnt ein Leser ab.
 const ESCAPE_BY_CHAR: Record<string, string> = { "\n": "\\n", "\r": "\\r", "\u0085": "\\N", "\u2028": "\\L", "\u2029": "\\P" };
 function isBreakOrControl(code: number): boolean {
@@ -246,6 +252,7 @@ function needsQuoting(v: string, flow: boolean): boolean {
   if (startsWithEmoji(v)) return true;
   if (/^(true|false|null|yes|no|on|off|~)$/i.test(v)) return true;
   if (YAML_NUMBER_LIKE.test(v)) return true;
+  if (YAML_SEXAGESIMAL.test(v)) return true;
   return false;
 }
 

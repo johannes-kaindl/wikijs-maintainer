@@ -76,6 +76,16 @@ describe("SyncService.importExisting", () => {
     expect(datei.split("\n").filter((l) => l === "---").length).toBe(2);
   });
 
+  it("Titel und Beschreibung, die nur eine Uhrzeit sind, stehen in Anfuehrungszeichen: Obsidian 1.15.0 liest ein blankes 14:55 als Zahl 895 (kit 0.108.0)", async () => {
+    const seite: Page = { id: 6, path: "termine/uhr", title: "9:30", description: "14:55", content: "# Text\n", updatedAt: "T6", tags: ["a"], isPublished: true };
+    const { svc, written, plan } = setup([seite]);
+    await svc.importExisting(plan, "wiki-wins");
+    const datei = [...written.values()][0] as string;
+    expect(datei).toContain('title: "9:30"');
+    expect(datei).toContain('description: "14:55"');
+    expect(extractPageMeta(datei, "x")).toMatchObject({ title: "9:30", description: "14:55" });
+  });
+
   it("eine im Wiki unveroeffentlichte Seite bekommt wiki_published: false (sonst wuerde der erste Push sie veroeffentlichen)", async () => {
     const { svc, written, plan } = setup();
     await svc.importExisting(plan, "wiki-wins");

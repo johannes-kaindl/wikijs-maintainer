@@ -1,4 +1,4 @@
-// vendored from code-kit@0.87.0, src/ts/pure/rel-path.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
+// vendored from code-kit@0.88.0, src/ts/pure/rel-path.ts — do not hand-edit; re-vendor via tools/sync-kit.sh
 /** The segment rules of a relative path that must stay inside a root (a vault, a sync folder, an export folder): no `..`
  *  that leaves it, no absolute path, no empty or `.` segment that makes two spellings of one file, no `\` that one platform
  *  reads as a separator and another as a name, no NUL. String logic only — it never touches a file system and never decodes
@@ -36,7 +36,7 @@ export type RelPathResult = { ok: true; path: string; segments: string[] } | { o
 
 export interface RelPathOptions {
   /** A leading `/`: `"reject"` (default) answers `absolute`; `"strip"` reads it as an empty segment and goes on (a model writes a
-   *  folder as `/20_Projekte/` and means no escape). */
+   *  folder as `/projects/` and means no escape). */
   absolute?: "reject" | "strip";
   /** The root itself (`""` after normalising) is a valid answer. Default: it is `empty`. */
   allowEmpty?: boolean;
